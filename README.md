@@ -271,3 +271,107 @@ You now have: ✔ Containerized FastAPI App
  
  
 ---
+
+
+# Day 3 — Production-Grade Docker 🚀
+
+This document captures everything from **Day 3** of the DevOps learning journey: making Docker images optimized, secure, reproducible, and production-ready.
+
+---
+
+## 🎯 Goal
+By the end of Day 3, you should confidently say:
+
+> “My Docker image is optimized, secure, reproducible, and production-ready.”
+
+---
+
+## 🛠 Why Dockerfile Quality Matters
+Recruiters don’t care if Docker *just works*.  
+They care if you understand:
+
+- **Image size** → smaller images deploy faster and use less storage.
+- **Build layers** → caching makes builds faster and reproducible.
+- **Security** → don’t run as root, use slim images.
+- **Reproducibility** → builds are consistent across environments.
+
+❌ Bad Dockerfile:
+- Runs as root
+- Huge image
+- Installs unnecessary tools
+- No caching
+
+✅ Good Dockerfile:
+- Small
+- Non-root user
+- Cached layers
+- Explicit dependencies
+
+---
+
+## 📝 Multi-Stage Dockerfile
+
+```dockerfile
+# -------- Stage 1: Builder --------
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install --prefix=/install -r requirements.txt
+
+# -------- Stage 2: Runtime --------
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --system appgroup && adduser --system appuser --ingroup appgroup
+
+COPY --from=builder /install /usr/local
+COPY app ./app
+
+USER appuser
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+
+▶️ Build & Run Instructions
+Build image
+bash
+docker build -t devops-python-app:prod .
+Check image size
+bash
+docker images
+📌 Expected: < 300 MB
+
+Run container
+bash
+docker run -p 8000:8000 devops-python-app:prod
+Verify health
+Open in browser:
+
+Code
+http://localhost:8000/health
+Expected response:
+
+json
+{"status": "ok"}
+🔐 Security & Best Practices
+Use non-root user (appuser) → prevents privilege escalation.
+
+Use slim base image → fewer packages, smaller attack surface.
+
+Remove apt cache after install → smaller image size.
+
+Explicit CMD → predictable runtime.
+

@@ -375,3 +375,134 @@ Remove apt cache after install → smaller image size.
 
 Explicit CMD → predictable runtime.
 
+
+
+
+# Day 4 — AWS ECR + IAM + Real Image Push 🚀
+
+Today marks the first cloud touchpoint in our DevOps journey.  
+We will securely push our Docker image to **Amazon Elastic Container Registry (ECR)** using IAM permissions.
+
+---
+
+## 🎯 Goal
+
+> **Build → Tag → Authenticate → Push image to ECR securely using IAM**
+
+This ensures our container is production-ready and can later be deployed seamlessly into Kubernetes (EKS).
+
+---
+
+## ⏱ Time Plan (5 Hours)
+
+| Time | Task |
+|------|------|
+| 1 hr | AWS ECR setup |
+| 1 hr | IAM roles & permissions |
+| 1 hr | Docker login + tagging |
+| 1 hr | Push + verify image |
+| 1 hr | Cleanup + notes |
+
+---
+
+## 1️⃣ Create ECR Repository
+
+- Go to **AWS Console → ECR → Private → Create Repository**
+- Settings:
+  - Repository name: `devops-python-app`
+  - Tag immutability: **Enabled**
+  - Scan on push: **Enabled**
+  - Encryption: **AES-256 (default)**
+
+📌 **Why immutability?**  
+Prevents accidental overrides of production images.
+
+---
+
+## 2️⃣ IAM Permissions
+
+Create a dedicated IAM user for DevOps with **programmatic access**.  
+Attach the following minimal policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+📌 Why minimal?  
+Real DevOps avoids admin credentials — only required actions are allowed.
+
+3️⃣ Configure AWS CLI
+On your laptop/server:
+
+bash
+aws configure
+Enter:
+
+AWS Access Key
+
+AWS Secret Key
+
+Region (e.g. ap-south-1)
+
+Output: json
+
+4️⃣ Login to ECR
+bash
+aws ecr get-login-password --region ap-south-1 \
+  | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com
+✅ If login succeeds → you are authenticated.
+
+5️⃣ Tag the Image
+bash
+docker tag devops-python-app:latest \
+<AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/devops-python-app:latest
+6️⃣ Push to ECR
+bash
+docker push <AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/devops-python-app:latest
+Expected output:
+
+Code
+Layer upload: complete
+Pushed image on ECR
+7️⃣ Verify in AWS Console
+Go to AWS Console → ECR → devops-python-app → Images
+
+Check:
+
+✔ Tag: latest
+
+✔ Scan status: IN_PROGRESS or COMPLETED
+
+✔ Vulnerabilities report
+
+🧂 Bonus (Interview Gold)
+“Our CI pushed to ECR with scan-on-push enabled, to detect CVEs before deployment.”
+
+This shows security-first thinking in DevOps interviews.
+
+✅ Success Checklist
+[x] IAM user created with minimal permissions
+
+[x] AWS CLI configured
+
+[x] Docker authenticated to ECR
+
+[x] Image tagged & pushed
+
+[x] Image visible in AWS console
+
+[x] Security scan triggered

@@ -501,6 +501,136 @@ This shows security-first thinking in DevOps interviews.
 
 [x] Docker authenticated to ECR
 
+
+
+# Day 5 — EKS Cluster Setup (AWS Kubernetes)
+
+## 🎯 Goal
+Create an **EKS cluster** in `ap-south-1` with a managed node group, configure `kubectl`, and validate workloads.
+
+By the end of this task you should be able to run:
+```bash
+kubectl get nodes
+kubectl get pods -A
+kubectl get svc
+⏱️ Time Plan (5 Hours)
+Time	Task
+1 hr	Install AWS tooling
+2 hr	Create EKS cluster
+1 hr	Node group setup
+1 hr	Verification + cleanup
+1️⃣ Prerequisites
+AWS account
+
+IAM user/role with EKS + EC2 permissions
+
+AWS CLI configured with region ap-south-1
+
+Verify:
+
+bash
+aws configure get region
+aws sts get-caller-identity
+2️⃣ Install Required Tools
+AWS CLI
+Already installed in Day 4. Check:
+
+bash
+aws --version
+
+Bash
+curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz"
+Step 3: Extract the binary
+Copy code
+Bash
+tar -xzf eksctl_Linux_amd64.tar.gz
+Step 4: Move to /usr/local/bin
+Copy code
+Bash
+sudo mv eksctl /usr/local/bin/
+Step 5: Verify installation
+Copy code
+Bash
+eksctl version
+
+kubectl
+bash
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+kubectl version --client
+3️⃣ Create EKS Cluster
+bash
+eksctl create cluster \
+  --name devops-eks \
+  --region ap-south-1 \
+  --nodegroup-name devops-ng \
+  --node-type t3.medium \
+  --nodes 2 \
+  --nodes-min 2 \
+  --nodes-max 3 \
+  --managed
+Control plane: managed by AWS
+
+Node group: EC2 worker nodes
+
+Networking: VPC + subnets
+
+Auth: kubeconfig auto-updated
+
+⏳ Takes ~10–20 minutes.
+
+4️⃣ Verify Cluster
+Check nodes:
+
+bash
+kubectl get nodes
+Check system pods:
+
+bash
+kubectl get pods -A
+Expected:
+
+aws-node (CNI)
+
+kube-proxy
+
+coredns
+
+Check services:
+
+bash
+kubectl get svc -A
+5️⃣ IAM & Kubeconfig Check
+Inspect kubeconfig:
+
+bash
+cat ~/.kube/config
+Verify cluster endpoint:
+
+bash
+aws eks describe-cluster \
+  --name devops-eks \
+  --region ap-south-1 \
+  --query "cluster.endpoint" \
+  --output text
+6️⃣ Optional — Node Lifecycle Drill
+bash
+kubectl cordon <node-name>
+kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+kubectl uncordon <node-name>
+✅ Success Checklist
+[x] Cluster created (devops-eks)
+
+[x] Node group online
+
+[x] kubectl get nodes shows Ready
+
+[x] System pods running
+
+[x] kubeconfig updated
+
+[x] Region = ap-south-1
+
 [x] Image tagged & pushed
 
 [x] Image visible in AWS console

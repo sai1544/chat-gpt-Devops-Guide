@@ -376,9 +376,11 @@ Remove apt cache after install → smaller image size.
 Explicit CMD → predictable runtime.
 
 
+---
 
+Day 4 — AWS ECR + IAM + Real Image Push 🚀
+---
 
-# Day 4 — AWS ECR + IAM + Real Image Push 🚀
 
 Today marks the first cloud touchpoint in our DevOps journey.  
 We will securely push our Docker image to **Amazon Elastic Container Registry (ECR)** using IAM permissions.
@@ -503,7 +505,7 @@ This shows security-first thinking in DevOps interviews.
 
 
 
-# Day 5 — EKS Cluster Setup (AWS Kubernetes)
+Day 5 — EKS Cluster Setup (AWS Kubernetes)
 
 ## 🎯 Goal
 Create an **EKS cluster** in `ap-south-1` with a managed node group, configure `kubectl`, and validate workloads.
@@ -636,3 +638,113 @@ kubectl uncordon <node-name>
 [x] Image visible in AWS console
 
 [x] Security scan triggered
+
+
+
+
+
+Day 6 — AWS Load Balancer Controller + IRSA + Ingress
+
+## 🎯 Goal
+Configure **AWS ALB Load Balancer Controller** via **IRSA** so that Kubernetes can create AWS ALBs automatically.
+
+This connects Kubernetes networking with AWS infrastructure securely.
+
+---
+
+## ⏱️ Time Plan (5 Hours)
+
+| Time | Task                          |
+|------|-------------------------------|
+| 1 hr | Install Helm                  |
+| 1 hr | Create IRSA                   |
+| 2 hr | Deploy ALB Controller         |
+| 1 hr | Verification                  |
+
+---
+
+## 1️⃣ Install Helm
+
+Helm is the Kubernetes package manager used to install the ALB controller.
+
+```bash
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+helm version
+2️⃣ Create IAM Role for Service Account (IRSA)
+IRSA allows Kubernetes service accounts to assume IAM roles securely.
+
+Step 1 — Download IAM Policy
+bash
+curl -o iam-policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.6.2/docs/install/iam_policy.json
+Step 2 — Create IAM Policy
+bash
+aws iam create-policy \
+  --policy-name AWSLoadBalancerControllerIAMPolicy \
+  --policy-document file://iam-policy.json
+Step 3 — Associate OIDC Provider
+bash
+eksctl utils associate-iam-oidc-provider \
+  --cluster devops-eks \
+  --region ap-south-1 \
+  --approve
+Step 4 — Create IAM Service Account
+bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+POLICY_ARN=arn:aws:iam::$ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy
+
+eksctl create iamserviceaccount \
+  --cluster devops-eks \
+  --namespace kube-system \
+  --name aws-load-balancer-controller \
+  --attach-policy-arn $POLICY_ARN \
+  --override-existing-serviceaccounts \
+  --region ap-south-1 \
+  --approve
+3️⃣ Deploy ALB Load Balancer Controller
+Step 1 — Add Helm Repo
+bash
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+Step 2 — Install Controller
+bash
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  --namespace kube-system \
+  --set clusterName=devops-eks \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --set region=ap-south-1 \
+  --set vpcId=$(aws eks describe-cluster \
+      --name devops-eks \
+      --region ap-south-1 \
+      --query "cluster.resourcesVpcConfig.vpcId" \
+      --output text)
+4️⃣ Verify Deployment
+Check Controller Pod
+bash
+kubectl get pods -n kube-system | grep aws-load-balancer-controller
+Check Logs
+bash
+kubectl logs -n kube-system deployment/aws-load-balancer-controller
+Confirm CRDs
+bash
+kubectl get crd | grep elbv2.k8s.aws
+Expected CRDs:
+
+ingressclassparams.elbv2.k8s.aws
+
+targetgroupbindings.elbv2.k8s.aws
+
+✅ Day 6 Success Checklist
+[x] Helm installed
+
+[x] IAM Policy created
+
+[x] OIDC provider associated with cluster
+
+[x] IRSA service account created in kube-system
+
+[x] ALB Controller deployed via Helm
+
+[x] Controller pod running
+
+[x] CRDs present (ingressclassparams, targetgroupbindings)

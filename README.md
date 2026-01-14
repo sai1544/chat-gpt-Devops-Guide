@@ -737,7 +737,7 @@ Expected CRDs:
 ingressclassparams.elbv2.k8s.aws
 
 targetgroupbindings.elbv2.k8s.aws
-
+```
 ✅ Day 6 Success Checklist
 [x] Helm installed
 

@@ -311,7 +311,7 @@ They care if you understand:
 
 ## 📝 Multi-Stage Dockerfile
 
-```dockerfile
+dockerfile
 # -------- Stage 1: Builder --------
 FROM python:3.11-slim AS builder
 
@@ -342,7 +342,7 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"] 
 
 
 ▶️ Build & Run Instructions

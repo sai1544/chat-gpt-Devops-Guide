@@ -312,6 +312,7 @@ They care if you understand:
 ## 📝 Multi-Stage Dockerfile
 
 dockerfile
+```
 # -------- Stage 1: Builder --------
 FROM python:3.11-slim AS builder
 
@@ -343,7 +344,7 @@ USER appuser
 EXPOSE 8000
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"] 
-
+```
 
 ▶️ Build & Run Instructions
 Build image
@@ -444,6 +445,7 @@ Attach the following minimal policy:
     }
   ]
 }
+```
 📌 Why minimal?  
 Real DevOps avoids admin credentials — only required actions are allowed.
 
@@ -511,7 +513,7 @@ Day 5 — EKS Cluster Setup (AWS Kubernetes)
 Create an **EKS cluster** in `ap-south-1` with a managed node group, configure `kubectl`, and validate workloads.
 
 By the end of this task you should be able to run:
-```bash
+bash
 kubectl get nodes
 kubectl get pods -A
 kubectl get svc
@@ -533,6 +535,7 @@ Verify:
 bash
 aws configure get region
 aws sts get-caller-identity
+```
 2️⃣ Install Required Tools
 AWS CLI
 Already installed in Day 4. Check:
@@ -620,6 +623,7 @@ bash
 kubectl cordon <node-name>
 kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
 kubectl uncordon <node-name>
+```
 ✅ Success Checklist
 [x] Cluster created (devops-eks)
 

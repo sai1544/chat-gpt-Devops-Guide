@@ -674,25 +674,29 @@ Helm is the Kubernetes package manager used to install the ALB controller.
 ```bash
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 helm version
+```
 2️⃣ Create IAM Role for Service Account (IRSA)
 IRSA allows Kubernetes service accounts to assume IAM roles securely.
 
 Step 1 — Download IAM Policy
-bash
+```bash
 curl -o iam-policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.6.2/docs/install/iam_policy.json
+```
 Step 2 — Create IAM Policy
-bash
+```bash
 aws iam create-policy \
   --policy-name AWSLoadBalancerControllerIAMPolicy \
   --policy-document file://iam-policy.json
+```
 Step 3 — Associate OIDC Provider
-bash
+```bash
 eksctl utils associate-iam-oidc-provider \
   --cluster devops-eks \
   --region ap-south-1 \
   --approve
+```
 Step 4 — Create IAM Service Account
-bash
+```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 POLICY_ARN=arn:aws:iam::$ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy
 
@@ -704,13 +708,15 @@ eksctl create iamserviceaccount \
   --override-existing-serviceaccounts \
   --region ap-south-1 \
   --approve
+```
 3️⃣ Deploy ALB Load Balancer Controller
 Step 1 — Add Helm Repo
-bash
+```bash
 helm repo add eks https://aws.github.io/eks-charts
 helm repo update
+```
 Step 2 — Install Controller
-bash
+```bash
 helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   --namespace kube-system \
   --set clusterName=devops-eks \
@@ -722,12 +728,14 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
       --region ap-south-1 \
       --query "cluster.resourcesVpcConfig.vpcId" \
       --output text)
+ ```
 4️⃣ Verify Deployment
 Check Controller Pod
-bash
+```bash
 kubectl get pods -n kube-system | grep aws-load-balancer-controller
+```
 Check Logs
-bash
+```bash
 kubectl logs -n kube-system deployment/aws-load-balancer-controller
 Confirm CRDs
 bash

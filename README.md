@@ -5,7 +5,7 @@
  
 ---
  
-📅 Day 1 — FastAPI + Docker Fundamentals
+#📅 Day 1 — FastAPI + Docker Fundamentals
  
 FastAPI Setup
  
@@ -17,10 +17,10 @@ Tested locally via Uvicorn
  
  
 Command:
- 
+```
 uvicorn app.main:app --reload
  
- 
+ ```
 ---
  
 Local Debugging Concepts
@@ -38,9 +38,9 @@ Verified logs from terminal
 Dockerization
  
 Created Dockerfile with:
- 
+ ```
 python:3.10-slim base image
- 
+ ```
 Installed dependencies from requirements.txt
  
 Copied application code
@@ -50,23 +50,23 @@ Set Uvicorn as entrypoint
  
  
 Image Build:
- 
+ ```
 docker build -t fastapi-app .
- 
+ ```
 Run Container:
- 
+``` 
 docker run -p 8000:8000 fastapi-app
  
- 
+ ```
 ---
  
 Verification
  
 Accessed service from EC2 public IP:
  
- 
+ ```
 http://<EC2-PUBLIC-IP>:8000/health
- 
+ ```
 Verified container logs using:
  
  
@@ -75,7 +75,7 @@ docker logs <container-id>
  
 ---
  
-📅 Day 2 — Logging + Config + PostgreSQL Integration
+#📅 Day 2 — Logging + Config + PostgreSQL Integration
  
 Project Structure Refactor
  
@@ -112,13 +112,13 @@ Removed DB credentials from codebase
  
  
 Example env keys:
- 
+ ```
 DB_HOST
 DB_PORT
 DB_NAME
 DB_USER
 DB_PASSWORD
- 
+``` 
  
 ---
  
@@ -127,23 +127,23 @@ PostgreSQL Integration (psycopg2)
 Installed psycopg2-binary
  
 Created DB connector:
- 
+ ```
 get_db_connection()
- 
+ ```
  
 Wrote helper functions:
- 
+ ```
 insert_service_status()
  
 fetch_latest_status()
  
- 
+ ```
  
  
 ---
  
 Database Schema
- 
+ ```
 Table created:
  
 CREATE TABLE service_status (
@@ -153,7 +153,7 @@ CREATE TABLE service_status (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
  
- 
+ ```
 ---
  
 Fail-Fast Startup Logic

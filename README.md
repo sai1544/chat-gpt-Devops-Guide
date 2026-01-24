@@ -777,3 +777,253 @@ IRSA = government permit (legal permission to build).
 Helm = blueprint delivery system (hands over construction plans cleanly).
 
 Without IRSA, the construction company would have no legal permit. Without the controller, the road map stays on paper. Together, they make traffic flow from the internet into your pods securely.
+
+
+
+
+---
+
+# 🚀 Day 7 — Deploy Python App to EKS + Public Access
+
+Today we deploy our FastAPI app to **AWS EKS** and expose it publicly using **AWS ALB Ingress**.  
+By the end, you’ll be able to open a public AWS URL and see the `/health` response.
+
+---
+
+## 🎯 Goal
+
+> Deploy FastAPI app on EKS and access it via AWS ALB Ingress.
+
+This is a **real production deployment**, not just practice.
+
+---
+
+## ⏱ Time Plan (5 Hours)
+
+| Time | Task                |
+|------|---------------------|
+| 1 hr | Namespace + Secrets |
+| 1 hr | Deployment YAML     |
+| 1 hr | Service YAML        |
+| 1 hr | Ingress (ALB)       |
+| 1 hr | Debug + Verify      |
+
+---
+
+## 1️⃣ Create Namespace + Secrets (1 Hour)
+
+Namespaces isolate resources. Secrets store sensitive data like DB credentials.
+
+### Create Namespace
+```bash
+kubectl create namespace app
+```
+
+### Create Secret (DB creds)
+```bash
+kubectl create secret generic db-secret \
+  --namespace app \
+  --from-literal=DB_HOST=<RDS-ENDPOINT-or-temp-db> \
+  --from-literal=DB_PORT=5432 \
+  --from-literal=DB_NAME=appdb \
+  --from-literal=DB_USER=appuser \
+  --from-literal=DB_PASSWORD=apppassword
+```
+
+📌 For now, DB can be temporary or placeholder. RDS comes later (Day 8–9).
+
+---
+
+## 2️⃣ Deployment YAML (1 Hour)
+
+Defines how Pods run inside the cluster.
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-python-app
+  namespace: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devops-python-app
+  template:
+    metadata:
+      labels:
+        app: devops-python-app
+    spec:
+      containers:
+        - name: app
+          image: 345466045476.dkr.ecr.ap-south-1.amazonaws.com/devops-repo:v1
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: db-secret
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+```
+
+### Apply Deployment
+```bash
+kubectl apply -f deployment.yaml
+```
+
+### Verify Pods
+```bash
+kubectl get pods -n app
+```
+
+---
+
+## 3️⃣ Service YAML (1 Hour)
+
+Provides a stable internal endpoint for Pods.
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-python-service
+  namespace: app
+spec:
+  selector:
+    app: devops-python-app
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: ClusterIP
+```
+
+### Apply Service
+```bash
+kubectl apply -f service.yaml
+```
+
+### Verify Service
+```bash
+kubectl get svc -n app
+```
+
+---
+
+## 4️⃣ Ingress (ALB) YAML (1 Hour)
+
+Ingress defines external routing rules. The AWS Load Balancer Controller provisions an ALB.
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devops-python-ingress
+  namespace: app
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: devops-python-service
+                port:
+                  number: 80
+```
+
+### Apply Ingress
+```bash
+kubectl apply -f ingress.yaml
+```
+
+---
+
+## 5️⃣ Get Public URL (Important)
+
+Check Ingress for ALB DNS:
+
+```bash
+kubectl get ingress -n app
+```
+
+You will see something like:
+
+```
+ADDRESS: xyz.ap-south-1.elb.amazonaws.com
+```
+
+Open in browser:
+
+```
+http://<ALB-DNS>/health
+```
+
+🎉 Your app is now live on the internet!
+
+---
+
+## 🧠 Debugging (If Any Issue)
+
+- **Pods not running?**
+  ```bash
+  kubectl describe pod <pod> -n app
+  kubectl logs <pod> -n app
+  ```
+
+- **ALB not created?**
+  ```bash
+  kubectl describe ingress devops-python-ingress -n app
+  kubectl logs -n kube-system deployment/aws-load-balancer-controller
+  ```
+
+- **Service mismatch?**
+  - Ensure labels in Deployment and Service match (`app: devops-python-app`).
+
+---
+
+## 📌 Day 7 Success Checklist
+
+✔ Pods running  
+✔ Service created  
+✔ Ingress created  
+✔ ALB provisioned  
+✔ Public URL accessible  
+✔ `/health` works  
+
+If all ✔ → you just deployed a **real production app**.
+
+---
+
+## 🧠 What You Achieved
+
+You can now say (truthfully):
+
+> “I deployed a Python microservice on AWS EKS with ALB ingress, IAM-secured controller, secrets, probes, and autoscaling-ready config.”
+
+This is **2026 DevOps-ready language**.
+
+
+

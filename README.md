@@ -349,7 +349,9 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ▶️ Build & Run Instructions
 Build image
 bash
+```
 docker build -t devops-python-app:prod .
+```
 Check image size
 bash
 docker images
@@ -357,16 +359,19 @@ docker images
 
 Run container
 bash
+```
 docker run -p 8000:8000 devops-python-app:prod
+```
 Verify health
 Open in browser:
-
+```
 Code
 http://localhost:8000/health
 Expected response:
 
 json
 {"status": "ok"}
+```
 🔐 Security & Best Practices
 Use non-root user (appuser) → prevents privilege escalation.
 

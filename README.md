@@ -1175,7 +1175,6 @@ How to roll config without downtime
 
 This is real DevOps + Cloud Engineering.
 
-Issues Faced:
 
 # Debugging EKS ↔ RDS Connectivity (Security Group Fix)
 

@@ -1,6 +1,6 @@
 # chat-gpt-Devops-Guide
 
-📝 DevOps FastAPI Project — Day 1 & Day 2 Notes
+# Devops Day 1 & Day 2 Notes
  
  
 ---

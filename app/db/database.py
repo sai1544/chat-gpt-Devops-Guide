@@ -12,10 +12,12 @@ def get_db_connection():
             port=settings.DB_PORT,
             database=settings.DB_NAME,
             user=settings.DB_USER,
-            password=settings.DB_PASSWORD
+            password=settings.DB_PASSWORD,
+            connect_timeout=5
         )
         logger.info("PostgreSQL connection successful")
         return conn
     except OperationalError as e:
         logger.error(f"Database connection failed: {e}")
         raise
+

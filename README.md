@@ -349,7 +349,9 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ▶️ Build & Run Instructions
 Build image
 bash
+```
 docker build -t devops-python-app:prod .
+```
 Check image size
 bash
 docker images
@@ -357,16 +359,19 @@ docker images
 
 Run container
 bash
+```
 docker run -p 8000:8000 devops-python-app:prod
+```
 Verify health
 Open in browser:
-
+```
 Code
 http://localhost:8000/health
 Expected response:
 
 json
 {"status": "ok"}
+```
 🔐 Security & Best Practices
 Use non-root user (appuser) → prevents privilege escalation.
 
@@ -1026,4 +1031,205 @@ You can now say (truthfully):
 This is **2026 DevOps-ready language**.
 
 
+
+
+
+Day 8 — Connect EKS App to AWS RDS PostgreSQL
+🎯 Goal
+Provision AWS RDS PostgreSQL and securely connect workloads running in EKS to it.
+
+By the end, your FastAPI app will talk to a real production database inside AWS.
+
+⏱ Time Plan (5 Hours)
+Time	Task
+1 hr	RDS basics + planning
+2 hrs	Create PostgreSQL RDS
+1 hr	Security Groups
+1 hr	Connect app → RDS
+1️⃣ RDS Design Decision
+We will create:
+
+Engine: PostgreSQL
+
+Subnets: Private (no public access)
+
+Security: SG-based access only
+
+Connectivity: Same VPC as EKS
+
+This matches enterprise standards.
+
+2️⃣ Create RDS PostgreSQL (AWS Console)
+Steps:
+
+Go to AWS Console → RDS → Create database
+
+Choose:
+
+Engine: PostgreSQL
+
+Template: Free tier
+
+DB identifier: devops-postgres
+
+Username: appuser
+
+Password: (store safely)
+
+Connectivity:
+
+VPC: Same VPC as EKS
+
+Public access: ❌ No
+
+DB subnet group: Default
+
+Security group: Create new → rds-sg
+
+3️⃣ Security Group Config (Critical)
+RDS Security Group (rds-sg):
+```
+
+Inbound rule:
+
+Type: PostgreSQL
+
+Port: 5432
+
+Source: EKS Node Security Group
+```
+
+📌 This ensures only Kubernetes nodes can access the DB.
+
+4️⃣ Update Kubernetes Secret
+Delete old secret:
+
+Code
+```
+"kubectl delete secret db-secret -n app"
+```
+Create new secret with RDS endpoint:
+
+Code
+```
+"kubectl create secret generic db-secret \
+  --namespace app \
+  --from-literal=DB_HOST=<RDS-ENDPOINT> \
+  --from-literal=DB_PORT=5432 \
+  --from-literal=DB_NAME=postgres \
+  --from-literal=DB_USER=appuser \
+  --from-literal=DB_PASSWORD=<password>"
+```
+Restart pods to pick up new secrets:
+
+Code
+```
+"kubectl rollout restart deployment devops-python-app -n app"
+```
+5️⃣ Verify Connection
+Check logs:
+
+Code
+```
+"kubectl logs -n app <pod-name>"
+```
+Expected output:
+
+Code
+```
+PostgreSQL connection successful
+```
+Then test:
+
+Code
+```
+"http://<ALB-DNS>/health"
+```
+If it responds → 🎉 FULLY PRODUCTION BACKEND
+
+✅ Day 8 Success Checklist
+[x] RDS created
+
+[x] Private DB (no public access)
+
+[x] SG allows EKS → RDS
+
+[x] Secret updated
+
+[x] Pods restarted
+
+[x] App connects to RDS
+
+[x] /health still works
+
+🧠 What You Learned (Interview Gold)
+How EKS talks to RDS
+
+Why private DBs matter
+
+How SGs enforce zero trust
+
+How apps consume secrets
+
+How to roll config without downtime
+
+This is real DevOps + Cloud Engineering.
+
+
+# Debugging EKS ↔ RDS Connectivity (Security Group Fix)
+
+This document captures the main issue faced while deploying a FastAPI application on Amazon EKS with PostgreSQL hosted on Amazon RDS, and how it was resolved.
+
+---
+
+## Issue Summary
+- **Problem:** Application pods on EKS were unable to connect to the RDS PostgreSQL instance.
+- **Symptom:** Logs showed repeated `connection timed out` errors when trying to connect to RDS.
+- **Root Cause:** Security group (SG) rules between EKS worker nodes and RDS were not configured.
+
+---
+
+## Debugging Journey
+1. **Observed Errors**
+   - Pods started but crashed with DB connection errors.
+   - Manual socket tests (`nc` / Python `socket`) inside pods timed out.
+
+2. **Verification**
+   - Confirmed EKS and RDS were in the same VPC.
+   - Checked RDS SG inbound rules — no allowance for EKS node group SG.
+
+3. **Testing**
+   - Deployed a debug pod (`postgres:15` image) inside the EKS cluster.
+   - Attempted `psql` connection to RDS → timed out.
+
+---
+
+## Resolution
+1. **Configured Security Group Rules**
+   - Edited RDS security group to allow inbound traffic on port **5432**.
+   - Source set to the EKS cluster/node group security group.
+
+2. **Validation**
+   - Re-ran `psql` from debug pod → successful login.
+   - Application logs showed:
+     ```
+     PostgreSQL connection successful
+     Database connection verified and closed
+     ```
+   - Health probes (`/health`) returned `200 OK` consistently.
+
+---
+
+## Lessons Learned
+- EKS and RDS **must be in the same VPC** for private connectivity.
+- They **do not need to be in the same subnet**, but routing must exist.
+- RDS SG must explicitly allow inbound traffic from EKS SG on port 5432.
+- Debug pods with `psql` are invaluable for testing DB connectivity inside the cluster.
+
+---
+
+## Next Steps
+- Automate SG configuration during infrastructure setup (Terraform/CloudFormation).
+- Add retry logic in FastAPI startup to handle temporary DB unavailability.
+- Document networking dependencies clearly in deployment guides.
 

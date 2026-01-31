@@ -1552,15 +1552,16 @@ jobs:
           kubectl set image deployment/devops-python-app \
             app=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$ECR_REPO:${IMAGE_TAG} \
             -n app
-
+```
 4️⃣ Commit & Push
 bash
 ```
 git add .github/workflows/deploy.yml
 git commit -m "ci: enable github actions deployment"
 git push origin main
-Check GitHub → Actions tab → workflow runs step by step.
 ```
+Check GitHub → Actions tab → workflow runs step by step.
+
 5️⃣ Verify Deployment
 bash
 ```

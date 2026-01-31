@@ -1482,15 +1482,17 @@ AWS_ACCESS_KEY_ID
 AWS_SECRET_ACCESS_KEY
 
 2️⃣ Add GitHub Secrets
-```
+
 Repo → Settings → Secrets and variables → Actions → New repository secret
 
-Name	              Value
+Name	 
+```
 AWS_ACCESS_KEY_ID	from IAM
 AWS_SECRET_ACCESS_KEY	from IAM
 AWS_REGION	ap-south-1
 AWS_ACCOUNT_ID	your AWS account ID
 EKS_CLUSTER_NAME	devops-eks
+```
 3️⃣ GitHub Actions Workflow
 Create file: .github/workflows/deploy.yml
 
@@ -1550,7 +1552,7 @@ jobs:
           kubectl set image deployment/devops-python-app \
             app=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$ECR_REPO:${IMAGE_TAG} \
             -n app
-```
+
 4️⃣ Commit & Push
 bash
 ```
@@ -1566,7 +1568,6 @@ kubectl get pods -n app
 kubectl describe deployment devops-python-app -n app
 ```
 Test via ALB:
-
 Code
 ```
 http://<ALB-DNS>/health

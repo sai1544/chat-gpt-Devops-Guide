@@ -1,6 +1,6 @@
 # chat-gpt-Devops-Guide
 
-📝 DevOps FastAPI Project — Day 1 & Day 2 Notes
+# Devops Day 1 & Day 2 Notes
  
  
 ---
@@ -1233,3 +1233,149 @@ This document captures the main issue faced while deploying a FastAPI applicatio
 - Add retry logic in FastAPI startup to handle temporary DB unavailability.
 - Document networking dependencies clearly in deployment guides.
 
+
+
+
+
+# Day 9 — Database Init, Failure & Recovery (SRE Mindset)
+
+## 🎯 Goal
+Initialize the database, verify read/write, simulate failure, and explain recovery.
+
+This day shifts from DevOps to SRE — proving reliability under failure conditions.
+
+---
+
+## ✅ Success Checklist
+- [x] DB table created
+- [x] Write endpoint works
+- [x] Read endpoint works
+- [x] DB outage simulated
+- [x] Failure observed
+- [x] Recovery confirmed
+- [x] Incident documented
+
+---
+
+## 1️⃣ Database Initialization
+
+Inside a running pod:
+
+```bash
+kubectl exec -it -n app <pod-name> -- bash
+apt-get update && apt-get install -y postgresql-client
+psql -h $DB_HOST -U $DB_USER -d $DB_NAME
+```
+Create table:
+```
+sql
+CREATE TABLE health_logs (
+  id SERIAL PRIMARY KEY,
+  status VARCHAR(50),
+  checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+Exit with \q.
+
+📌 Running inside the pod confirms network + secrets + IAM + SGs are correct.
+
+2️⃣ Read / Write API
+Endpoints added in app/routes/health.py:
+```
+python
+@router.get("/write")
+def write_data():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO health_logs (status) VALUES (%s)", ("OK",))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"message": "Data inserted"}
+
+@router.get("/read")
+def read_data():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, status, checked_at FROM health_logs ORDER BY id DESC LIMIT 5")
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return {"data": rows}
+```
+Test via ALB:
+```
+Code
+http://<ALB-DNS>/write
+http://<ALB-DNS>/read
+```
+✅ /write → inserts a row
+✅ /read → fetches last 5 rows
+
+3️⃣ Failure Simulation
+Stop RDS instance in AWS Console:
+
+Go to RDS → Stop instance
+
+Observe pod logs:
+
+bash
+kubectl logs -n app <pod-name>
+Expected:
+
+Connection errors
+
+App fails readiness probe
+
+ALB returns 503
+
+📌 This is correct behavior.
+
+4️⃣ Recovery Test
+Start RDS again:
+
+Pods reconnect automatically
+
+Readiness probe passes
+
+ALB resumes traffic
+
+Test again:
+```
+Code
+http://<ALB-DNS>/health
+http://<ALB-DNS>/read
+```
+✅ Recovery confirmed.
+
+5️⃣ Incident Documentation
+```
+Create INCIDENT.md:
+
+markdown
+# Incident: RDS PostgreSQL Outage
+
+## Impact
+- API returned 503
+- Writes failed
+
+## Root Cause
+- Database instance stopped manually
+
+## Detection
+- ALB health checks failed
+- Kubernetes readiness probe failed
+
+## Resolution
+- Restarted RDS
+- Pods reconnected automatically
+
+## Prevention
+- Add RDS Multi-AZ
+- Add retry logic in DB connection
+- Add alerts for DB downtime
+```
+🧠 Interview Statement
+“I’ve handled a backend outage, observed Kubernetes + ALB behavior, and validated automatic recovery.”
+
+This demonstrates real SRE-level DevOps experience.

@@ -1379,3 +1379,213 @@ markdown
 “I’ve handled a backend outage, observed Kubernetes + ALB behavior, and validated automatic recovery.”
 
 This demonstrates real SRE-level DevOps experience.
+
+
+
+
+
+
+
+
+
+# Day 10 — CI/CD with GitHub Actions (Foundation)
+
+## 🎯 Goal
+On every Git push → Docker image builds → pushed to ECR → deployed to EKS automatically.
+
+After today:
+- ❌ No manual `docker build`
+- ❌ No manual `kubectl apply`
+- ✅ One git push = production update
+
+---
+
+## 🧠 CI/CD Flow
+
+GitHub Push
+↓
+GitHub Actions Runner
+↓
+Build Docker Image
+↓
+Push to AWS ECR
+↓
+kubectl set image (EKS)
+↓
+Rolling Update
+
+Code
+
+Modern DevOps (2026‑ready) — no Jenkins, no self‑hosted runners.
+
+---
+
+## ⏱ Time Plan (5 Hours)
+
+| Time | Task |
+|------|------|
+| 1 hr | Prepare AWS IAM for GitHub |
+| 1 hr | Store GitHub Secrets |
+| 2 hrs | GitHub Actions workflow |
+| 1 hr | Test & debug |
+
+---
+
+## 1️⃣ Create IAM User for CI/CD
+
+- IAM → Users → Create user  
+- Name: `github-actions-ecr-eks`  
+- Access type: Programmatic  
+
+Attach policy:
+json
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListClusters",
+        "eks:DescribeCluster",
+        "eks:GetToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity",
+        "sts:AssumeRole"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+Save:
+
+AWS_ACCESS_KEY_ID
+
+AWS_SECRET_ACCESS_KEY
+
+2️⃣ Add GitHub Secrets
+```
+Repo → Settings → Secrets and variables → Actions → New repository secret
+
+Name	              Value
+AWS_ACCESS_KEY_ID	from IAM
+AWS_SECRET_ACCESS_KEY	from IAM
+AWS_REGION	ap-south-1
+AWS_ACCOUNT_ID	your AWS account ID
+EKS_CLUSTER_NAME	devops-eks
+3️⃣ GitHub Actions Workflow
+Create file: .github/workflows/deploy.yml
+
+yaml
+```
+name: CI-CD to EKS
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  ECR_REPO: devops-python-app
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t $ECR_REPO:${IMAGE_TAG} .
+
+      - name: Tag Docker image
+        run: |
+          docker tag $ECR_REPO:${IMAGE_TAG} \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$ECR_REPO:${IMAGE_TAG}
+
+      - name: Push image to ECR
+        run: |
+          docker push \
+          ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$ECR_REPO:${IMAGE_TAG}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ secrets.AWS_REGION }} \
+            --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+      - name: Deploy to EKS
+        run: |
+          kubectl set image deployment/devops-python-app \
+            app=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/$ECR_REPO:${IMAGE_TAG} \
+            -n app
+```
+4️⃣ Commit & Push
+bash
+```
+git add .github/workflows/deploy.yml
+git commit -m "ci: enable github actions deployment"
+git push origin main
+Check GitHub → Actions tab → workflow runs step by step.
+```
+5️⃣ Verify Deployment
+bash
+```
+kubectl get pods -n app
+kubectl describe deployment devops-python-app -n app
+```
+Test via ALB:
+
+Code
+```
+http://<ALB-DNS>/health
+http://<ALB-DNS>/read
+```
+✅ Automated deployment complete.
+
+✅ Success Checklist
+[x] IAM user created
+
+[x] GitHub secrets added
+
+[x] Workflow runs successfully
+
+[x] Image pushed to ECR
+
+[x] Deployment updated automatically
+
+[x] App works after push
+
+🧠 Interview Statement
+“We use GitHub Actions to build Docker images, push to ECR, and deploy to EKS using rolling updates.”

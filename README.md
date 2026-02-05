@@ -1591,3 +1591,104 @@ http://<ALB-DNS>/read
 
 🧠 Interview Statement
 “We use GitHub Actions to build Docker images, push to ECR, and deploy to EKS using rolling updates.”
+
+
+
+
+
+
+
+
+
+
+# DevOps Guide — FastAPI App on Azure
+
+## Project Overview
+This project demonstrates end‑to‑end DevOps practices by deploying a Python FastAPI application into cloud infrastructure.  
+Originally started on AWS (ECR + EKS), the project was rebuilt from scratch on **Azure** after Day 10 due to account suspension.  
+From **Day 12 onward**, all workflows, deployments, and hygiene practices are implemented using **Azure Container Registry (ACR)** and **Azure Kubernetes Service (AKS)**.
+
+---
+
+## 🚀 Day 12 — Image Versioning, Retention & Safe Releases (Azure)
+
+### Release Strategy
+- **Dual Tagging**
+  - Immutable tags using Git SHA (e.g., `devops-python-app:01de7f5…`)
+  - Semantic version tags for releases (e.g., `devops-python-app:v1.0.0`)
+  - Ensures traceability and human‑friendly rollbacks.
+
+- **GitHub Actions Workflow**
+  - Builds and pushes images with both SHA and SemVer tags.
+  - Conditional step runs when a Git tag (`vX.Y.Z`) is pushed.
+  - Example:
+    ```yaml
+    - name: Tag release version
+      if: startsWith(github.ref, 'refs/tags/')
+      run: |
+        docker tag ${{ secrets.ACR_LOGIN_SERVER }}/devops-python-app:${{ github.sha }} \
+                   ${{ secrets.ACR_LOGIN_SERVER }}/devops-python-app:${{ github.ref_name }}
+        docker push ${{ secrets.ACR_LOGIN_SERVER }}/devops-python-app:${{ github.ref_name }}
+    ```
+
+- **Release Discipline**
+  - Create a release tag:
+    ```bash
+    git tag v1.0.0
+    git push origin v1.0.0
+    ```
+  - Deploy explicitly by version:
+    ```bash
+    kubectl set image deployment/devops-python-app \
+      app=<ACR_LOGIN_SERVER>/devops-python-app:v1.0.0 -n app
+    ```
+  - Rollback cleanly:
+    ```bash
+    kubectl set image deployment/devops-python-app \
+      app=<ACR_LOGIN_SERVER>/devops-python-app:v0.9.0 -n app
+    ```
+
+- **ACR Retention Policy**
+  - Enabled automatic cleanup of untagged images after 30 days:
+    ```bash
+    az acr config retention update \
+      --registry devopsacr7295 \
+      --status Enabled \
+      --days 30 \
+      --type UntaggedManifests
+    ```
+  - Verified with:
+    ```bash
+    az acr config retention show --registry devopsacr7295 -o table
+    ```
+
+- **Version Discovery**
+  - List available tags:
+    ```bash
+    az acr repository show-tags \
+      --name devopsacr7295 \
+      --repository devops-python-app -o table
+    ```
+  - Deploy or rollback using specific tags.
+
+---
+
+### ✅ Day 12 Success Checklist
+- No `latest` in deployments  
+- CI/CD produces versioned images  
+- Explicit deployment by release tag (`v1.0.0`)  
+- Deterministic rollback by version (`v0.9.0`)  
+- ACR retention policy enabled  
+- README updated with release strategy  
+
+---
+
+## 📌 Key Takeaway
+Day 12 adds **release discipline**:
+- Traceable deployments  
+- Deterministic rollbacks  
+- Cost & security hygiene  
+- Professional artifact lifecycle management  
+
+This is where DevOps becomes **reliable engineering**.
+

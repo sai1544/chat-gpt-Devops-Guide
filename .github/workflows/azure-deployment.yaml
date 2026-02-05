@@ -3,7 +3,8 @@ name: CI-CD to AKS (Azure)
 on:
   push:
     branches: [ "main" ]
-
+    tags:
+      - 'v*.*.*'
 env:
   IMAGE_NAME: devops-python-app
   IMAGE_TAG: ${{ github.sha }}

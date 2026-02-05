@@ -45,5 +45,3 @@ jobs:
             -n app
 
           kubectl rollout status deployment/devops-python-app -n app --timeout=120s
-
-

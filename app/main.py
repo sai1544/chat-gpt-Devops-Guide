@@ -25,3 +25,7 @@ def shutdown_event():
 def root():
     return {"message": "DevOps Python App Running"}
 
+@app.get("/version")
+def version_info():
+    return {"version": "v2.0.0"}
+

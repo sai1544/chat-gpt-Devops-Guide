@@ -1,5 +1,6 @@
 name: CI-CD to AKS (Azure)
-
+permissions: 
+  contents: write
 on:
   push:
     branches: [ "main" ]

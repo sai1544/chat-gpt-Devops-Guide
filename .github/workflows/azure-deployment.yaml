@@ -3,8 +3,6 @@ name: CI-CD to AKS (Azure)
 on:
   push:
     branches: [ "main" ]
-    tags:
-      - 'v*.*.*'
 
 env:
   IMAGE_NAME: devops-python-app
@@ -17,6 +15,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Bump Version and Create Tag
+        id: bump
+        uses: anothrNick/github-tag-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: patch   # increments patch version (v1.0.0 → v1.0.1)
+          WITH_V: true          # ensures tags are prefixed with 'v'
+
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -26,18 +32,13 @@ jobs:
         run: |
           az acr login --name $(echo ${{ secrets.ACR_LOGIN_SERVER }} | cut -d'.' -f1)
 
-      - name: Build & Push Image (SHA + Ref)
+      - name: Build & Push Image (Auto Version)
         run: |
-          # Build image with commit SHA
-          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          VERSION=${{ steps.bump.outputs.new_tag }}
+          echo "Building image with version: $VERSION"
 
-          # Tag with Git ref (branch name or release tag)
-          docker tag ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
-            ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-
-          # Push both tags
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$VERSION .
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$VERSION
 
       - name: Get AKS Credentials
         run: |
@@ -48,8 +49,10 @@ jobs:
 
       - name: Deploy to AKS
         run: |
+          VERSION=${{ steps.bump.outputs.new_tag }}
           kubectl set image deployment/devops-python-app \
-            app=${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }} \
+            app=${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$VERSION \
             -n app
 
           kubectl rollout status deployment/devops-python-app -n app --timeout=120s
+

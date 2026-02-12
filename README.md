@@ -1610,72 +1610,140 @@ From **Day 12 onward**, all workflows, deployments, and hygiene practices are im
 
 ---
 
-## 🚀 Day 12 — Image Versioning, Retention & Safe Releases (Azure)
+---
 
-### Release Strategy
+# 🚀 Day 12 — Image Versioning, Retention & Safe Releases (Azure)
+
+## 📌 Release Strategy
 - **Dual Tagging**
   - Immutable tags using Git SHA (e.g., `devops-python-app:01de7f5…`)
   - Semantic version tags for releases (e.g., `devops-python-app:v1.0.0`)
-  - Ensures traceability and human‑friendly rollbacks.
-
-- **GitHub Actions Workflow**
-  - Builds and pushes images with both SHA and SemVer tags.
-  - Conditional step runs when a Git tag (`vX.Y.Z`) is pushed.
-  - Example:
-    ```yaml
-    - name: Tag release version
-      if: startsWith(github.ref, 'refs/tags/')
-      run: |
-        docker tag ${{ secrets.ACR_LOGIN_SERVER }}/devops-python-app:${{ github.sha }} \
-                   ${{ secrets.ACR_LOGIN_SERVER }}/devops-python-app:${{ github.ref_name }}
-        docker push ${{ secrets.ACR_LOGIN_SERVER }}/devops-python-app:${{ github.ref_name }}
-    ```
-
-- **Release Discipline**
-  - Create a release tag:
-    ```bash
-    git tag v1.0.0
-    git push origin v1.0.0
-    ```
-  - Deploy explicitly by version:
-    ```bash
-    kubectl set image deployment/devops-python-app \
-      app=<ACR_LOGIN_SERVER>/devops-python-app:v1.0.0 -n app
-    ```
-  - Rollback cleanly:
-    ```bash
-    kubectl set image deployment/devops-python-app \
-      app=<ACR_LOGIN_SERVER>/devops-python-app:v0.9.0 -n app
-    ```
-
-- **ACR Retention Policy**
-  - Enabled automatic cleanup of untagged images after 30 days:
-    ```bash
-    az acr config retention update \
-      --registry devopsacr7295 \
-      --status Enabled \
-      --days 30 \
-      --type UntaggedManifests
-    ```
-  - Verified with:
-    ```bash
-    az acr config retention show --registry devopsacr7295 -o table
-    ```
-
-- **Version Discovery**
-  - List available tags:
-    ```bash
-    az acr repository show-tags \
-      --name devopsacr7295 \
-      --repository devops-python-app -o table
-    ```
-  - Deploy or rollback using specific tags.
+- Ensures **traceability** and **human‑friendly rollbacks**.
 
 ---
 
-### ✅ Day 12 Success Checklist
+## ⚙️ GitHub Actions Workflow
+
+This workflow:
+- Auto‑increments semantic version tags (`v1.0.0 → v1.0.1 → v1.0.2`) using `github-tag-action`.
+- Builds and pushes images with both SHA and SemVer tags.
+- Deploys directly to AKS with the new version.
+
+```yaml
+name: CI-CD to AKS (Azure)
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: write   # allow workflow to push new tags
+
+env:
+  IMAGE_NAME: devops-python-app
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Auto-increment semantic version tags
+      - name: Bump Version and Create Tag
+        id: bump
+        uses: anothrNick/github-tag-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: patch   # increments patch version (v1.0.0 → v1.0.1)
+          WITH_V: true          # ensures tags are prefixed with 'v'
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: |
+          az acr login --name $(echo ${{ secrets.ACR_LOGIN_SERVER }} | cut -d'.' -f1)
+
+      - name: Build & Push Image (Auto Version)
+        run: |
+          VERSION=${{ steps.bump.outputs.new_tag }}
+          echo "Building image with version: $VERSION"
+
+          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$VERSION .
+          docker push ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$VERSION
+
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ secrets.AKS_RG }} \
+            --name ${{ secrets.AKS_NAME }} \
+            --overwrite-existing
+
+      - name: Deploy to AKS
+        run: |
+          VERSION=${{ steps.bump.outputs.new_tag }}
+          kubectl set image deployment/devops-python-app \
+            app=${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$VERSION \
+            -n app
+
+          kubectl rollout status deployment/devops-python-app -n app --timeout=120s
+```
+
+---
+
+## 📖 Release Discipline
+- **Create a release tag manually (first time only):**
+  ```bash
+  git tag v1.0.0
+  git push origin v1.0.0
+  ```
+- **Deploy explicitly by version:**
+  ```bash
+  kubectl set image deployment/devops-python-app \
+    app=<ACR_LOGIN_SERVER>/devops-python-app:v1.0.0 -n app
+  ```
+- **Rollback cleanly:**
+  ```bash
+  kubectl set image deployment/devops-python-app \
+    app=<ACR_LOGIN_SERVER>/devops-python-app:v0.9.0 -n app
+  ```
+
+---
+
+## 🧹 ACR Retention Policy
+- Enabled automatic cleanup of **untagged images after 30 days**:
+  ```bash
+  az acr config retention update \
+    --registry devopsacr7295 \
+    --status Enabled \
+    --days 30 \
+    --type UntaggedManifests
+  ```
+- Verified with:
+  ```bash
+  az acr config retention show --registry devopsacr7295 -o table
+  ```
+
+---
+
+## 🔎 Version Discovery
+- **List available tags:**
+  ```bash
+  az acr repository show-tags \
+    --name devopsacr7295 \
+    --repository devops-python-app -o table
+  ```
+- Deploy or rollback using specific tags.
+
+---
+
+## ✅ Day 12 Success Checklist
 - No `latest` in deployments  
-- CI/CD produces versioned images  
+- CI/CD produces **versioned images**  
 - Explicit deployment by release tag (`v1.0.0`)  
 - Deterministic rollback by version (`v0.9.0`)  
 - ACR retention policy enabled  
@@ -1690,5 +1758,18 @@ Day 12 adds **release discipline**:
 - Cost & security hygiene  
 - Professional artifact lifecycle management  
 
-This is where DevOps becomes **reliable engineering**.
+This is where **DevOps becomes reliable engineering**.
 
+---
+
+## 🔮 Future Reference
+- **Version bumping rules**:  
+  - `patch` → bug fixes (`v1.0.1`)  
+  - `minor` → new features (`v1.1.0`)  
+  - `major` → breaking changes (`v2.0.0`)  
+- **Automation**: integrate commit message conventions (`feat:`, `fix:`, `BREAKING CHANGE:`) to auto‑decide bump type.  
+- **Safe releases**: always deploy by explicit version, never `latest`.  
+- **Rollback strategy**: keep at least 2–3 stable tags in ACR for deterministic rollbacks.  
+- **Retention hygiene**: monitor ACR cleanup policies to avoid cost/security issues.  
+
+---

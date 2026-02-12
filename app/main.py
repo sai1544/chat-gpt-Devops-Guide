@@ -27,5 +27,5 @@ def root():
 
 @app.get("/version")
 def version_info():
-    return {"version": "v1.0"}
+    return {"version": "v1.0.0"}
 

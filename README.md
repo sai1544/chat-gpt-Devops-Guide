@@ -1773,3 +1773,181 @@ This is where **DevOps becomes reliable engineering**.
 - **Retention hygiene**: monitor ACR cleanup policies to avoid cost/security issues.  
 
 ---
+
+
+
+
+## 🚀 Day 13 — Blue/Green Deployments (Zero Downtime)
+🎯 Goal
+Deploy a new version without impacting users, then switch traffic instantly.
+
+By the end of Day 13:
+
+Two versions run side‑by‑side
+
+Traffic switch is controlled
+
+Rollback is instant (no rebuilds)
+
+1️⃣ Blue/Green Concept
+Blue → current stable version
+
+Green → new version
+
+Both run at the same time
+
+Service selector decides who gets traffic
+
+This avoids:
+
+Partial rollouts
+
+Broken releases
+
+Slow rollbacks
+
+2️⃣ Blue Deployment (Stable Version)
+blue-dep.yaml
+
+yaml
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-python-app-blue
+  namespace: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devops-python-app
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: devops-python-app
+        version: blue
+    spec:
+      containers:
+        - name: app
+          image: devopsacr7295.azurecr.io/devops-python-app:v3.0.3
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: db-secret   # ensures DB connection works
+```
+Apply:
+
+bash
+```
+kubectl apply -f blue-dep.yaml
+```
+3️⃣ Green Deployment (New Version)
+green-dep.yaml
+
+yaml
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-python-app-green
+  namespace: app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devops-python-app
+      version: green
+  template:
+    metadata:
+      labels:
+        app: devops-python-app
+        version: green
+    spec:
+      containers:
+        - name: app
+          image: devopsacr7295.azurecr.io/devops-python-app:v3.0.4
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: db-secret
+```
+Apply:
+
+bash
+```
+kubectl apply -f green-dep.yaml
+```
+4️⃣ Service + LoadBalancer (Browser Access)
+service.yaml
+
+yaml
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-python-service
+  namespace: app
+spec:
+  type: LoadBalancer
+  selector:
+    app: devops-python-app
+    version: blue   # initially points to Blue
+  ports:
+    - port: 80
+      targetPort: 8000
+```
+Apply:
+
+bash
+```
+kubectl apply -f service.yaml
+kubectl get svc -n app
+```
+You’ll see an EXTERNAL-IP (Azure Load Balancer).
+Test in browser:
+
+Code
+```
+http://<EXTERNAL-IP>/health
+http://<EXTERNAL-IP>/read
+```
+5️⃣ Traffic Switch (Zero Downtime)
+Switch traffic to Green:
+
+bash
+```
+kubectl patch service devops-python-service -n app \
+  -p '{"spec":{"selector":{"app":"devops-python-app","version":"green"}}}'
+```
+⚡ Traffic instantly shifts to Green pods, external IP stays the same.
+
+6️⃣ Instant Rollback
+Switch back to Blue:
+
+bash
+```
+kubectl patch service devops-python-service -n app \
+  -p '{"spec":{"selector":{"app":"devops-python-app","version":"blue"}}}'
+```
+Rollback is immediate — no rebuilds, no waiting.
+
+7️⃣ Cleanup (Optional)
+Once Green is stable:
+
+bash
+kubectl delete deployment devops-python-app-blue -n app
+Or keep both for next release cycle.
+
+✅ Day 13 Success Checklist
+✔ Blue deployment running
+✔ Green deployment running
+✔ Service exposed via LoadBalancer
+✔ Traffic switched without downtime
+✔ Rollback tested
+✔ Browser access verified
+
+🧠 Interview Gold
+“We use Blue/Green deployments on Kubernetes by running two versions in parallel and switching traffic at the Service level for zero‑downtime releases. The external IP stays constant, so users never see disruption.”

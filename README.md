@@ -2131,3 +2131,153 @@ All traffic returns to Blue.
 
 🧠 Interview Gold
 “We implement Canary deployments by assigning Blue and Canary pods a shared label, then pointing the Service selector to that label. Traffic distribution is controlled by replica counts, allowing progressive rollout and instant rollback without downtime.”
+
+
+
+
+# Day 15 — Monitoring & Observability (Prometheus + Grafana)
+
+## 🎯 Goal
+By the end of Day 15:
+- Prometheus installed in AKS
+- Grafana dashboard accessible
+- Cluster & pod metrics visible (CPU, memory, status)
+- Observability basics understood
+
+---
+
+## 🛠 Installation
+
+### Step 1 — Add Helm Repo
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+```
+Step 2 — Install kube-prometheus-stack
+bash
+```
+kubectl create namespace monitoring
+
+helm install monitoring prometheus-community/kube-prometheus-stack \
+  --namespace monitoring
+```
+This installs Prometheus, Grafana, Alertmanager, Node Exporter, and supporting components.
+
+✅ Verification
+Step 3 — Check Pods
+bash
+```
+kubectl get pods -n monitoring
+```
+Expected: Prometheus, Grafana, Alertmanager, Node Exporter all running.
+
+⚠️ Issues Faced & Debugging Journey
+1. Grafana Access Issue
+Problem: Grafana was only accessible via kubectl port-forward.
+
+Fix: Exposed Grafana via Ingress.
+
+Patched Grafana Deployment with:
+
+yaml
+```
+GF_SERVER_ROOT_URL=http://<IP>/grafana
+GF_SERVER_SERVE_FROM_SUB_PATH=true
+```
+Created Ingress path /grafana.
+
+2. Prometheus Access Issue
+Problem: Direct StatefulSet edits reverted (managed by Operator).
+
+Fix: Edited Prometheus Custom Resource (CR):
+
+yaml
+```
+externalUrl: http://<IP>/prometheus
+routePrefix: /prometheus
+```
+Created Ingress path /prometheus.
+
+3. Grafana Showing “No Data”
+Problem: Dashboards empty despite Prometheus targets being UP.
+
+Debugging Steps:
+
+Checked Prometheus /targets → confirmed node-exporter, kube-state-metrics, kubelet all UP.
+
+Verified Grafana datasource → pointed to internal service (monitoring-kube-prometheus-prometheus.monitoring:9090).
+
+Root Cause: Grafana was querying Prometheus at wrong URL (cluster‑internal, not Ingress).
+
+Fix:
+
+Edited ConfigMap:
+
+bash
+```
+kubectl edit configmap monitoring-kube-prometheus-grafana-datasource -n monitoring
+```
+Changed Prometheus datasource URL:
+
+yaml
+```
+url: http://<Ingress-IP>/prometheus
+```
+Restarted Grafana:
+
+bash
+```
+kubectl rollout restart deployment monitoring-grafana -n monitoring
+```
+Re-tested query up in Grafana Explore → metrics visible.
+
+📊 Results
+Prometheus scraping targets successfully:
+
+Node Exporter
+
+Kube State Metrics
+
+Kubelet
+
+CoreDNS
+
+Apiserver
+
+Grafana dashboards now show:
+
+Cluster CPU & memory usage
+
+Pod status & restarts
+
+Node metrics
+
+🧠 Lessons Learned
+Ingress vs Port-Forward:  
+Production monitoring tools must be exposed via Ingress, not port-forward.
+
+Operator Reconciliation:  
+Prometheus Operator manages StatefulSets. Always edit the CR, not the StatefulSet.
+
+Datasource Alignment:  
+Grafana must query Prometheus via the same external path (/prometheus).
+Internal service URLs won’t work when accessed via Ingress.
+
+Debugging Flow:
+
+Check Prometheus /targets → confirms scraping.
+
+Check Grafana datasource → confirms query path.
+
+Fix ConfigMap → restart Grafana → validate with up query.
+
+✅ Day 15 Success Checklist
+[x] Prometheus installed
+
+[x] Grafana running via Ingress
+
+[x] Pod & node metrics visible
+
+[x] CPU/memory charts working
+
+[x] Debugging journey documented

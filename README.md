@@ -1783,6 +1783,7 @@ Deploy a new version without impacting users, then switch traffic instantly.
 
 By the end of Day 13:
 
+
 Two versions run side‑by‑side
 
 Traffic switch is controlled
@@ -1790,6 +1791,7 @@ Traffic switch is controlled
 Rollback is instant (no rebuilds)
 
 1️⃣ Blue/Green Concept
+```
 Blue → current stable version
 
 Green → new version
@@ -1797,7 +1799,7 @@ Green → new version
 Both run at the same time
 
 Service selector decides who gets traffic
-
+```
 This avoids:
 
 Partial rollouts
@@ -1951,3 +1953,181 @@ Or keep both for next release cycle.
 
 🧠 Interview Gold
 “We use Blue/Green deployments on Kubernetes by running two versions in parallel and switching traffic at the Service level for zero‑downtime releases. The external IP stays constant, so users never see disruption.”
+
+
+
+
+
+
+## 🚀 Day 14 — Canary Deployments (Progressive Traffic)
+🎯 Goal
+Send a portion of traffic to the new version (Canary) while most traffic continues to hit the stable version (Blue). This allows safe, incremental rollout and instant rollback.
+
+1️⃣ Canary Concept
+```
+Blue → stable version (majority of traffic)
+
+Canary → new version (small portion of traffic)
+
+Service selector → includes both Blue + Canary pods
+
+Traffic split → controlled by replica counts
+```
+This avoids:
+
+Risky full rollouts
+
+User disruption if Canary fails
+
+Slow rollback
+
+2️⃣ Blue Deployment (Stable Version)
+blue-dep.yaml
+```
+yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-python-app-blue
+  namespace: app
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: devops-python-app
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: devops-python-app
+        version: blue
+        release-track: canary-blue   # shared label
+    spec:
+      containers:
+        - name: app
+          image: devopsacr7295.azurecr.io/devops-python-app:v3.0.3
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: db-secret
+```
+3️⃣ Canary Deployment (New Version)
+canary-dep.yaml
+```
+yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-python-app-canary
+  namespace: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devops-python-app
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: devops-python-app
+        version: canary
+        release-track: canary-blue   # shared label
+    spec:
+      containers:
+        - name: app
+          image: devopsacr7295.azurecr.io/devops-python-app:v3.0.4
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: db-secret
+```
+4️⃣ Service (LoadBalancer)
+service.yaml
+```
+yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-python-service
+  namespace: app
+spec:
+  type: LoadBalancer
+  selector:
+    release-track: canary-blue   # selects Blue + Canary pods only
+  ports:
+    - port: 80
+      targetPort: 8000
+```
+Apply:
+
+bash
+```
+kubectl apply -f service.yaml
+kubectl get svc -n app
+```
+Test in browser:
+
+Code
+```
+http://<EXTERNAL-IP>/health
+http://<EXTERNAL-IP>/read
+```
+5️⃣ Traffic Split by Replicas
+Traffic distribution is proportional to pod count:
+```
+Blue: 4 replicas
+
+Canary: 1 replica
+
+Result: ~80% traffic → Blue, ~20% traffic → Canary.
+```
+Scale deployments:
+
+bash
+```
+kubectl scale deployment devops-python-app-blue --replicas=4 -n app
+kubectl scale deployment devops-python-app-canary --replicas=1 -n app
+```
+6️⃣ Progressive Rollout Plan
+Increase Canary gradually:
+
+bash
+```
+# Step 1: 10% Canary
+kubectl scale deployment devops-python-app-blue --replicas=9 -n app
+kubectl scale deployment devops-python-app-canary --replicas=1 -n app
+
+# Step 2: 25% Canary
+kubectl scale deployment devops-python-app-blue --replicas=6 -n app
+kubectl scale deployment devops-python-app-canary --replicas=2 -n app
+
+# Step 3: 50% Canary
+kubectl scale deployment devops-python-app-blue --replicas=5 -n app
+kubectl scale deployment devops-python-app-canary --replicas=5 -n app
+
+# Step 4: 100% Canary (full rollout)
+kubectl scale deployment devops-python-app-blue --replicas=0 -n app
+kubectl scale deployment devops-python-app-canary --replicas=10 -n app
+7️⃣ Rollback Instantly
+```
+If Canary fails:
+
+bash
+```
+kubectl scale deployment devops-python-app-canary --replicas=0 -n app
+kubectl scale deployment devops-python-app-blue --replicas=10 -n app
+```
+All traffic returns to Blue.
+
+✅ Day 14 Success Checklist
+✔ Service selector includes Blue + Canary pods
+✔ LoadBalancer IP routes traffic to both versions
+✔ Replica counts control traffic percentage
+✔ Verified responses from both versions in browser
+✔ Canary scaled up/down safely
+✔ Rollback tested
+
+🧠 Interview Gold
+“We implement Canary deployments by assigning Blue and Canary pods a shared label, then pointing the Service selector to that label. Traffic distribution is controlled by replica counts, allowing progressive rollout and instant rollback without downtime.”

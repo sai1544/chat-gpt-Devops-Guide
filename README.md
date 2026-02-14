@@ -2281,3 +2281,175 @@ Fix ConfigMap → restart Grafana → validate with up query.
 [x] CPU/memory charts working
 
 [x] Debugging journey documented
+
+
+# 🚀 Day 16 — Horizontal Pod Autoscaling (HPA)
+
+## 🎯 Goal
+By the end of Day 16, we enabled **Horizontal Pod Autoscaler (HPA)** in our Kubernetes cluster to:
+- Automatically scale pods based on CPU usage.
+- Understand how Kubernetes achieves production‑grade elasticity.
+- Validate scaling behavior under simulated load.
+
+---
+
+## 🧠 Why HPA Matters
+- Without HPA, replicas are set manually (`replicas: 2`, `replicas: 4`).
+- In real systems, traffic and CPU usage fluctuate.
+- HPA allows Kubernetes to **scale pods up/down automatically** based on resource usage.
+- This ensures reliability, prevents outages, and optimizes resource costs.
+
+---
+
+## ⚡ Metrics Server
+
+### What is Metrics Server?
+- A lightweight aggregator that collects CPU and memory usage from **Kubelets**.
+- Provides metrics to the Kubernetes API so HPA can make scaling decisions.
+
+### Why We Use It
+- HPA depends on metrics‑server to calculate utilization.
+- Without metrics‑server, HPA shows `<unknown>` for CPU targets.
+
+### Verification
+```bash
+kubectl get deployment metrics-server -n kube-system
+kubectl top nodes
+kubectl top pods -n app
+```
+If CPU/memory values are visible → metrics‑server is working.
+
+⚡ Horizontal Pod Autoscaler (HPA)
+What is HPA?
+A Kubernetes resource that automatically adjusts the number of pod replicas in a deployment.
+
+Scaling is based on observed CPU/memory usage or custom metrics.
+
+How It Works
+Metrics‑server reports CPU/memory usage.
+
+HPA compares usage against the target threshold (e.g., 50% CPU).
+
+If usage > target → scale up pods (up to max).
+
+If usage < target → scale down pods (not below min).
+
+⚡ YAML Modifications
+Original Deployment (simplified)
+```
+yaml
+containers:
+  - name: app
+    image: devopsacr7295.azurecr.io/devops-python-app:v1
+    ports:
+      - containerPort: 8000
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+```
+Modified Deployment (added resources)
+yaml
+```
+containers:
+  - name: app
+    image: devopsacr7295.azurecr.io/devops-python-app:v1
+    ports:
+      - containerPort: 8000
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "256Mi"
+```
+👉 Why?  
+HPA requires CPU requests to calculate utilization. Without them, HPA fails with missing request for cpu.
+
+⚡ Creating HPA
+```
+bash
+kubectl autoscale deployment devops-python-app \
+  --cpu=50% \
+  --min=2 \
+  --max=6 \
+  -n app
+Target CPU = 50% of requested CPU.
+
+Minimum pods = 2.
+
+Maximum pods = 6.
+```
+⚡ Verification
+Check HPA:
+
+bash
+```
+kubectl get hpa -n app
+```
+Example output:
+
+Code
+```
+NAME                REFERENCE                      TARGETS        MINPODS   MAXPODS   REPLICAS   AGE
+devops-python-app   Deployment/devops-python-app   cpu: 39%/50%   2         6         2          11m
+```
+👉 This means pods are using ~39% of requested CPU, below the 50% target, so replicas remain at 2.
+
+⚡ Simulating Load
+Run a busybox pod to generate traffic:
+
+bash
+```
+kubectl run -it --rm load-generator \
+  --image=busybox \
+  -- /bin/sh
+  ```
+Inside container:
+
+bash
+```
+while true; do wget -q -O- http://devops-python-service.app.svc.cluster.local; done
+```
+Watch scaling:
+
+bash
+```
+kubectl get pods -n app -w
+```
+Pods will increase if CPU rises above 50%.
+
+✅ Day 16 Success Checklist
+[x] Metrics‑server installed and working.
+
+[x] Resource requests/limits added to deployments.
+
+[x] HPA created successfully.
+
+[x] kubectl top shows metrics.
+
+[x] HPA reports utilization (cpu: 39%/50%).
+
+[x] Pods scale under load.
+
+🧠 What You Learned
+Metrics‑server provides resource usage data.
+
+HPA uses that data to scale pods automatically.
+
+Resource requests are mandatory for HPA to compute utilization.
+
+This is production elasticity — the foundation of cloud‑native reliability.

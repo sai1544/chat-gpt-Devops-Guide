@@ -2679,7 +2679,7 @@ curl http://devops-python-app.app.svc.cluster.local:8000/health
 ```
 ✅ Day 18 Success Checklist
 
-
+```
 [x] Verified AKS supports NetworkPolicy (Azure CNI).
 
 [x] Applied default-deny policy.
@@ -2689,7 +2689,7 @@ curl http://devops-python-app.app.svc.cluster.local:8000/health
 [x] Applied allow-app-traffic policy.
 
 [x] Verified only labeled pods can communicate.
-
+```
 🧠 Interview Power
 If asked:
 “How do you secure pod-to-pod communication?”
@@ -2709,13 +2709,13 @@ This project demonstrates the basics of using **Terraform with Azure** to provis
 ---
 
 ## 📂 Project Structure
-
+```
 terraform-azure/
 ├── main.tf
 ├── provider.tf
 ├── variables.tf
 └── outputs.tf
-
+```
 Code
 
 ### File Purposes
@@ -2810,8 +2810,9 @@ Must be secured (contains sensitive data).
 Enables Terraform to know what to add/change/destroy.
 
 🎯 Day 19 Success Checklist
-
+```
 ✔ Terraform installed
 ✔ Provider configured
 ✔ Resource group created
 ✔ Understood state file
+```

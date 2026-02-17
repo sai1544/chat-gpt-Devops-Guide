@@ -2678,6 +2678,8 @@ kubectl exec -it <pod-name> -n app -- /bin/sh
 curl http://devops-python-app.app.svc.cluster.local:8000/health
 ```
 ✅ Day 18 Success Checklist
+
+
 [x] Verified AKS supports NetworkPolicy (Azure CNI).
 
 [x] Applied default-deny policy.
@@ -2808,6 +2810,7 @@ Must be secured (contains sensitive data).
 Enables Terraform to know what to add/change/destroy.
 
 🎯 Day 19 Success Checklist
+
 ✔ Terraform installed
 ✔ Provider configured
 ✔ Resource group created

@@ -2572,3 +2572,126 @@ You can say:
 
 “We configure terminationGracePeriodSeconds and preStop hooks so pods drain connections and finish requests before shutting down.”
 
+
+
+# 🚀 Day 18 — Network Policies (Cluster Security)
+
+## 🎯 Goal
+Implement Kubernetes **NetworkPolicies** to:
+- Restrict pod-to-pod communication.
+- Allow only required traffic paths.
+- Prevent lateral movement in case of a compromised pod.
+
+---
+
+## 🧠 Why This Matters
+By default, Kubernetes networking is **open**:
+- Any pod can talk to any other pod.
+- This is convenient for development but unsafe in production.
+
+### Risks:
+- A compromised pod can scan the cluster.
+- Sensitive services (DB, APIs) are exposed.
+- Attackers can move laterally across workloads.
+
+👉 NetworkPolicies act like **firewalls inside Kubernetes**, enforcing isolation and security.
+
+---
+
+## ⚡ Key Concepts
+
+### NetworkPolicy
+- A Kubernetes resource that controls **Ingress** (incoming) and **Egress** (outgoing) traffic for pods.
+- Works at the **pod level**, based on labels.
+- Enforced by the CNI plugin (Azure CNI in AKS supports this).
+
+### Default-Deny
+- A baseline policy that blocks all traffic.
+- Ensures pods cannot communicate unless explicitly allowed.
+
+### Allow Rules
+- Policies that permit specific communication paths.
+- Example: allow only `app: devops-python-app` pods to talk to each other.
+
+---
+
+## ⚡ YAML Configurations
+
+### Step 1 — Default Deny Policy
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: app
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+```
+👉 Effect: All traffic blocked in namespace app.
+
+Step 2 — Allow App Traffic
+```
+yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-app-traffic
+  namespace: app
+spec:
+  podSelector:
+    matchLabels:
+      app: devops-python-app
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: devops-python-app
+  policyTypes:
+  - Ingress
+  - Egress
+```
+👉 Effect: Only pods with label app: devops-python-app can talk to each other.
+
+⚡ Hands-On Verification
+1. Launch Test Pod
+```
+bash
+kubectl run test-pod --rm -it --image=busybox -n app -- /bin/sh
+```
+2. Try Communication
+Inside test-pod:
+```
+bash
+wget -qO- http://devops-python-app.app.svc.cluster.local:8000/health
+```
+With default-deny → request fails.
+
+With allow-app-traffic → request succeeds only if source pod has correct label.
+
+3. Direct Pod Testing
+```
+bash
+kubectl exec -it <pod-name> -n app -- /bin/sh
+curl http://devops-python-app.app.svc.cluster.local:8000/health
+```
+✅ Day 18 Success Checklist
+[x] Verified AKS supports NetworkPolicy (Azure CNI).
+
+[x] Applied default-deny policy.
+
+[x] Confirmed communication blocked.
+
+[x] Applied allow-app-traffic policy.
+
+[x] Verified only labeled pods can communicate.
+
+🧠 Interview Power
+If asked:
+“How do you secure pod-to-pod communication?”
+
+You can say:
+
+“We implement Kubernetes NetworkPolicies with a default-deny baseline and then allow only required traffic paths. This prevents lateral movement and enforces least-privilege networking.”

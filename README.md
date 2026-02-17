@@ -2695,3 +2695,120 @@ If asked:
 You can say:
 
 “We implement Kubernetes NetworkPolicies with a default-deny baseline and then allow only required traffic paths. This prevents lateral movement and enforces least-privilege networking.”
+
+
+
+
+
+## 🚀 Day 19 — Terraform Fundamentals
+
+This project demonstrates the basics of using **Terraform with Azure** to provision infrastructure declaratively.
+
+---
+
+## 📂 Project Structure
+
+terraform-azure/
+├── main.tf
+├── provider.tf
+├── variables.tf
+└── outputs.tf
+
+Code
+
+### File Purposes
+- **provider.tf** → Configures the Azure provider.
+- **main.tf** → Defines the resources (here, a Resource Group).
+- **variables.tf** → Holds input variables (parameterization).
+- **outputs.tf** → Defines outputs (useful values after apply).
+
+---
+
+## 🛠 Steps
+
+### Step 1 — Install Terraform
+Check if installed:
+```bash
+terraform -v
+```
+If not:
+```
+bash
+sudo apt-get update
+sudo apt-get install -y terraform
+```
+Step 2 — Create Project Structure
+```
+bash
+mkdir terraform-azure && cd terraform-azure
+touch main.tf provider.tf variables.tf outputs.tf
+```
+Step 3 — Provider Configuration
+```
+provider.tf:
+
+hcl
+provider "azurerm" {
+  features {}
+}
+```
+Step 4 — Define Resource Group
+```
+main.tf:
+
+hcl
+resource "azurerm_resource_group" "devops_rg" {
+  name     = "tf-devops-rg"
+  location = "East US"
+}
+```
+Step 5 — Initialize Terraform
+```
+bash
+terraform init
+```
+Step 6 — Plan
+```
+bash
+terraform plan
+```
+Expected output:
+```
+Code
+Plan: 1 to add, 0 to change, 0 to destroy
+```
+Step 7 — Apply
+```
+bash
+terraform apply
+Type yes when prompted.
+```
+
+Check Azure Portal → Resource Group tf-devops-rg created.
+
+🧠 Concepts Learned
+Terraform Workflow:
+
+Write code (.tf files)
+
+terraform init → initialize provider plugins
+
+terraform plan → preview changes
+
+terraform apply → apply changes
+
+State File (terraform.tfstate):
+
+Tracks what Terraform has created.
+
+Maps your code to real resources in Azure.
+
+Must be secured (contains sensitive data).
+
+Enables Terraform to know what to add/change/destroy.
+
+🎯 Day 19 Success Checklist
+✔ Terraform installed
+✔ Provider configured
+✔ Resource group created
+✔ Understood state file

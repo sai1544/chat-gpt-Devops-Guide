@@ -2816,3 +2816,124 @@ Enables Terraform to know what to add/change/destroy.
 ✔ Resource group created
 ✔ Understood state file
 ```
+
+
+
+# 🚀 Day 20 — Provision Azure Container Registry (ACR) via Terraform
+
+This project builds on Day 19 by provisioning **real cloud resources** in Azure using Terraform.  
+We introduce **variables** to avoid hardcoding values and reinforce the importance of **Terraform state**.
+
+---
+
+## 📂 Project Structure
+
+terraform-azure/
+├── main.tf
+├── provider.tf
+├── variables.tf
+└── outputs.tf
+
+Code
+
+### File Purposes
+- **provider.tf** → Configures the Azure provider.
+- **main.tf** → Defines resources (Resource Group + ACR).
+- **variables.tf** → Declares input variables (location, RG name, ACR name).
+- **outputs.tf** → Prints useful values after apply (e.g., ACR login server).
+
+---
+
+## 🛠 Step 1 — Add Variables
+
+`variables.tf`:
+```hcl
+variable "location" {
+  default = "East US"
+}
+
+variable "resource_group_name" {
+  default = "tf-devops-rg"
+}
+
+variable "acr_name" {
+  default = "tfdevopsacr12345"
+}
+```
+⚠️ Note: ACR names must be globally unique. Change the number if needed.
+
+🛠 Step 2 — Update main.tf
+main.tf:
+```
+hcl
+resource "azurerm_resource_group" "devops_rg" {
+  name     = var.resource_group_name
+  location = var.location
+}
+
+resource "azurerm_container_registry" "acr" {
+  name                = var.acr_name
+  resource_group_name = azurerm_resource_group.devops_rg.name
+  location            = var.location
+  sku                 = "Basic"
+  admin_enabled       = true
+}
+```
+Here:
+
+Resource Group is created using variables.
+
+ACR depends on the Resource Group (resource_group_name = azurerm_resource_group.devops_rg.name).
+
+🛠 Step 3 — Run Terraform
+Initialize:
+```
+bash
+terraform init
+```
+Plan:
+```
+bash
+terraform plan
+```
+Expected:
+```
+Code
+Plan: 1 to add, 0 to change, 0 to destroy
+```
+Apply:
+```
+bash
+terraform apply
+```
+Type yes when prompted.
+
+Check Azure Portal → ACR created.
+
+🧠 Concepts Learned
+1. Variables
+Avoid hardcoding values.
+
+Make configuration reusable and professional.
+
+2. Resource Dependencies
+Terraform automatically knows ACR depends on the Resource Group.
+
+Ensures correct creation order.
+
+3. State File (terraform.tfstate)
+Tracks what Terraform has created.
+
+Prevents duplicate creation.
+
+Allows modification tracking.
+
+If deleted → Terraform forgets infra exists.
+
+🎯 Day 20 Success Checklist
+```
+✔ ACR created via Terraform
+✔ Variables used cleanly
+✔ No hardcoded values
+✔ Terraform state understood
+```

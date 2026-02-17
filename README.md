@@ -2453,3 +2453,122 @@ HPA uses that data to scale pods automatically.
 Resource requests are mandatory for HPA to compute utilization.
 
 This is production elasticity — the foundation of cloud‑native reliability.
+
+
+
+# 🚀 Day 17 — Graceful Shutdown + Zero‑Downtime Behavior
+
+## 🎯 Goal
+Ensure application pods shut down gracefully during:
+- Rolling updates
+- Node drain
+- Scaling events
+
+This prevents:
+- Half‑completed database writes
+- Broken API requests
+- Sudden 502 errors
+
+---
+
+## 🧠 Why This Matters
+When Kubernetes removes a pod, it follows this sequence:
+
+1. **SIGTERM sent** → Kubernetes politely asks the container to stop.
+2. **terminationGracePeriodSeconds** → Kubernetes waits this long before force‑killing the pod.
+3. **SIGKILL sent** → If the pod hasn’t stopped by then, Kubernetes kills it immediately.
+
+👉 If the app doesn’t handle SIGTERM properly:
+- Requests drop
+- DB connections break
+- Users see errors
+
+---
+
+## ⚡ Key Concepts
+
+### SIGTERM
+- A signal meaning “please terminate.”
+- Gives the application a chance to finish ongoing work before shutting down.
+
+### terminationGracePeriodSeconds
+- The time Kubernetes waits after sending SIGTERM before force‑killing the pod.
+- Default = 30 seconds.
+- Can be configured in the pod spec.
+
+### preStop Hook
+- A lifecycle hook that runs before the container shuts down.
+- Example: `sleep 10` → pod waits 10 seconds before stopping.
+- Allows time for draining connections and finishing requests.
+
+---
+
+## ⚡ YAML Modifications
+
+### Original Deployment (simplified)
+```yaml
+spec:
+  containers:
+    - name: app
+      image: devopsacr7295.azurecr.io/devops-python-app:v1
+      ports:
+        - containerPort: 8000
+Modified Deployment (graceful shutdown)
+yaml
+spec:
+  terminationGracePeriodSeconds: 30
+  containers:
+    - name: app
+      image: devopsacr7295.azurecr.io/devops-python-app:v1
+      ports:
+        - containerPort: 8000
+      lifecycle:
+        preStop:
+          exec:
+            command: ["/bin/sh", "-c", "sleep 10"]
+```
+⚡ Hands‑On Verification
+Apply changes:
+```
+bash
+kubectl apply -f deployment.yaml
+```
+Trigger rolling update:
+```
+bash
+kubectl set image deployment/devops-python-app app=devopsacr7295.azurecr.io/devops-python-app:v3.0.0 -n app
+```
+Watch pods:
+```
+bash
+kubectl get pods -n app -w
+```
+Expected behavior:
+
+Old pod enters Terminating.
+
+Stays alive briefly (grace period + preStop).
+
+New pod becomes Ready.
+
+Traffic shifts → no downtime.
+
+✅ Day 17 Success Checklist
+[x] Added terminationGracePeriodSeconds
+
+[x] Added preStop hook
+
+[x] Applied deployment changes
+
+[x] Triggered rolling update
+
+[x] Verified pods terminate gracefully while new ones come up
+
+🧠 Interview Power
+If asked:
+“How do you prevent request drops during deployment?”
+
+You can say:
+
+“We configure terminationGracePeriodSeconds and preStop hooks so pods drain connections and finish requests before shutting down.”
+

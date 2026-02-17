@@ -2827,13 +2827,13 @@ We introduce **variables** to avoid hardcoding values and reinforce the importan
 ---
 
 ## 📂 Project Structure
-
+```
 terraform-azure/
 ├── main.tf
 ├── provider.tf
 ├── variables.tf
 └── outputs.tf
-
+```
 Code
 
 ### File Purposes
@@ -2863,7 +2863,7 @@ variable "acr_name" {
 ⚠️ Note: ACR names must be globally unique. Change the number if needed.
 
 🛠 Step 2 — Update main.tf
-main.tf:
+`main.tf`:
 ```
 hcl
 resource "azurerm_resource_group" "devops_rg" {

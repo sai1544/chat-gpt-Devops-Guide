@@ -2937,3 +2937,131 @@ If deleted → Terraform forgets infra exists.
 ✔ No hardcoded values
 ✔ Terraform state understood
 ```
+
+
+
+## 🚀 Day 21 — Provision AKS Using Terraform
+
+## 🎯 Goal
+Provision an **Azure Kubernetes Service (AKS)** cluster using Terraform, ensuring:
+- Declarative infrastructure (no manual CLI).
+- Reproducible cluster creation.
+- Node pool defined in code.
+- Terraform state tracks the cluster.
+
+---
+
+## 🧠 Why This Matters
+- Manual cluster creation (via Azure CLI/Portal) is error‑prone and not reproducible.
+- Terraform allows **Infrastructure as Code (IaC)**:
+  - Clusters can be recreated consistently across environments.
+  - Configurations are version‑controlled.
+  - State tracks resources for drift detection.
+
+👉 This is how platform engineers ensure **environment parity** and **automation**.
+
+---
+
+## ⚡ Terraform AKS Resource
+
+### main.tf
+```hcl
+resource "azurerm_kubernetes_cluster" "aks" {
+  name                = "tf-devops-aks"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.devops_rg.name
+  dns_prefix          = "tfdevops"
+
+  default_node_pool {
+    name       = "default"
+    node_count = 2
+    vm_size    = "Standard_DS2_v2"
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  network_profile {
+    network_plugin = "azure"
+  }
+}
+```
+Key Arguments
+```
+name → Cluster name.
+
+default_node_pool → Defines node pool size and VM type.
+
+identity → SystemAssigned managed identity for cluster resources.
+
+network_profile → Azure CNI plugin for networking.
+```
+⚡ Provisioning Workflow
+Step 1 — Initialize Terraform
+```
+bash
+terraform init
+```
+Step 2 — Plan Resources
+```
+bash
+terraform plan
+```
+Shows what Terraform will create.
+
+Step 3 — Apply
+```
+bash
+terraform apply
+```
+Creates AKS cluster (takes 5–10 minutes).
+
+⚡ Step 3 — Outputs (Cluster Access)
+
+Add to `outputs.tf`:
+```
+hcl
+output "kube_config" {
+  value     = azurerm_kubernetes_cluster.aks.kube_config_raw
+  sensitive = true
+}
+```
+Why?
+Normally, you’d run az aks get-credentials to fetch kubeconfig.
+
+With Terraform, we output kubeconfig directly → fully automated.
+
+Sensitive = true hides secrets from logs.
+
+Usage
+After apply:
+```
+bash
+terraform output kube_config > kubeconfig
+export KUBECONFIG=$(pwd)/kubeconfig
+kubectl get nodes
+```
+👉 If nodes are listed, kubectl is connected to your Terraform‑provisioned AKS cluster.
+
+✅ Day 21 Success Checklist
+
+[x] AKS resource defined in Terraform.
+
+[x] Cluster created via terraform apply.
+
+[x] kubeconfig exported from Terraform outputs.
+
+[x] kubectl get nodes shows cluster nodes.
+
+[x] No manual Azure CLI used.
+
+🧠 Interview Power
+```
+If asked:
+“How do you create your Kubernetes cluster?”
+
+You can say:
+
+“We provision AKS clusters using Terraform modules. Terraform outputs the kubeconfig, which we export to connect with kubectl. This ensures reproducibility, automation, and environment parity.”
+```

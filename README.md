@@ -3184,3 +3184,11 @@ You can say:
 
 “We use Azure Blob Storage backend with state locking to ensure safe collaboration and prevent drift. Variables are managed via tfvars for clean, production‑ready structure.”
 ```
+🎯 Interview Power
+```
+If asked:
+“How do you manage variables in Terraform?”  
+You can say:
+
+“We define variables in variables.tf for clarity and type safety, and supply values via terraform.tfvars. This separation ensures clean, production‑ready Terraform code and makes it easy to manage multiple environments.”
+```

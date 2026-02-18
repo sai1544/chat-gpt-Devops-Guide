@@ -3111,7 +3111,7 @@ az storage container create \
  ```
 This creates a storage account and a container to hold the Terraform state file.
 
-⚡ Step 2 — Backend Configuration
+# ⚡ Step 2 — Backend Configuration
 Create `backend.tf`:
 ```
 hcl
@@ -3126,7 +3126,7 @@ terraform {
 ```
 👉 This tells Terraform to use Azure Blob Storage as the backend.
 
-⚡ Step 3 — Reinitialize Terraform
+# ⚡ Step 3 — Reinitialize Terraform
 Run:
 
 bash
@@ -3141,7 +3141,7 @@ Type yes → local state is migrated into Azure Blob Storage.
 
 State locking is enabled automatically.
 
-⚡ Step 4 — Confirm Remote State
+# ⚡ Step 4 — Confirm Remote State
 Delete local state files:
 ```
 bash
@@ -3154,8 +3154,8 @@ terraform plan
 ```
 👉 If Terraform still knows about your resources, it’s reading state from Azure Blob Storage.
 
-⚡ Step 5 — Move Variables to terraform.tfvars
-Create terraform.tfvars:
+# ⚡ Step 5 — Move Variables to terraform.tfvars
+Create `terraform.tfvars`:
 ```
 hcl
 location            = "eastus"

@@ -3250,8 +3250,9 @@ terraform-azure/
 provider "azurerm" {
   features {}
 }
+```
 variables.tf
-hcl
+```hcl
 variable "location" {}
 variable "resource_group_name" {}
 variable "acr_name" {}
@@ -3316,16 +3317,45 @@ module "postgres" {
   admin_password      = var.db_admin_password
 }
 ```
-📦 Modules
-`Resource Group`
-```hcl
 
+`backend.tf`
+```hcl
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "tfstate-rg"
+    storage_account_name = "tfstateaccount123"
+    container_name       = "tfstate"
+    key                  = "terraform.tfstate"
+  }
+}
+```
+📦 Modules
+Resource Group
+`main.tf`
+
+```hcl
 resource "azurerm_resource_group" "this" {
   name     = var.name
   location = var.location
 }
+```
+`variables.tf`
+
+```hcl
+variable "name" {}
+variable "location" {}
+```
+`outputs.tf`
+
+```hcl
+output "name" {
+  value = azurerm_resource_group.this.name
+}
+```
 ACR
-hcl
+`main.tf`
+
+```hcl
 resource "azurerm_container_registry" "this" {
   name                = var.acr_name
   resource_group_name = var.resource_group_name
@@ -3334,9 +3364,24 @@ resource "azurerm_container_registry" "this" {
   admin_enabled       = true
 }
 ```
-`AKS`
-```hcl
+`variables.tf`
 
+```hcl
+variable "acr_name" {}
+variable "resource_group_name" {}
+variable "location" {}
+```
+`outputs.tf`
+
+```hcl
+output "login_server" {
+  value = azurerm_container_registry.this.login_server
+}
+```
+AKS
+`main.tf`
+
+```hcl
 resource "azurerm_kubernetes_cluster" "this" {
   name                = var.aks_name
   location            = var.location
@@ -3358,9 +3403,25 @@ resource "azurerm_kubernetes_cluster" "this" {
   }
 }
 ```
-`PostgreSQL`
-```hcl
+`variables.tf`
 
+```hcl
+variable "aks_name" {}
+variable "resource_group_name" {}
+variable "location" {}
+```
+`outputs.tf`
+
+```hcl
+output "kube_config" {
+  value     = azurerm_kubernetes_cluster.this.kube_config_raw
+  sensitive = true
+}
+```
+PostgreSQL
+`main.tf`
+
+```hcl
 resource "azurerm_postgresql_flexible_server" "this" {
   name                   = var.postgres_name
   resource_group_name    = var.resource_group_name
@@ -3378,18 +3439,34 @@ resource "azurerm_postgresql_flexible_server" "this" {
   }
 }
 ```
+`variables.tf`
+
+```hcl
+variable "postgres_name" {}
+variable "resource_group_name" {}
+variable "location" {}
+variable "admin_user" {}
+variable "admin_password" {
+  sensitive = true
+}
+```
+`outputs.tf`
+
+```hcl
+output "postgres_fqdn" {
+  value = azurerm_postgresql_flexible_server.this.fqdn
+}
+```
 🚀 Deployment Steps
 ```bash
-
 terraform init
 terraform plan
 terraform apply -auto-approve
-Post‑Apply
 ```
+`Post‑Apply`
 Export kubeconfig:
 
 ```bash
-
 terraform output -raw module.aks.kube_config > kubeconfig
 export KUBECONFIG=$(pwd)/kubeconfig
 kubectl get nodes
@@ -3405,7 +3482,6 @@ PostgreSQL Zone Error → Fixed by explicitly setting zone = "1" and disabling H
 Destroy resources to avoid cost:
 
 ```bash
-
 terraform destroy -auto-approve
 ```
 🎯 Outcome

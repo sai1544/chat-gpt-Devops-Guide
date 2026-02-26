@@ -3245,8 +3245,8 @@ terraform-azure/
 ```
 ⚙️ Root Files
 `provider.tf`
-hcl
-```
+```hcl
+
 provider "azurerm" {
   features {}
 }
@@ -3263,8 +3263,8 @@ variable "db_admin_password" {
 }
 ```
 `terraform.tfvars`
-hcl
-```
+```hcl
+
 location            = "Central US"
 resource_group_name = "tf-devops-rg"
 acr_name            = "tfdevopsacr98765"
@@ -3285,8 +3285,8 @@ terraform {
 ```
 `main.tf`
 
-hcl
-```
+```hcl
+
 module "resource_group" {
   source   = "./modules/resource-group"
   name     = var.resource_group_name
@@ -3318,8 +3318,8 @@ module "postgres" {
 ```
 📦 Modules
 `Resource Group`
-hcl
-```
+```hcl
+
 resource "azurerm_resource_group" "this" {
   name     = var.name
   location = var.location
@@ -3335,8 +3335,8 @@ resource "azurerm_container_registry" "this" {
 }
 ```
 `AKS`
-hcl
-```
+```hcl
+
 resource "azurerm_kubernetes_cluster" "this" {
   name                = var.aks_name
   location            = var.location
@@ -3359,8 +3359,8 @@ resource "azurerm_kubernetes_cluster" "this" {
 }
 ```
 `PostgreSQL`
-hcl
-```
+```hcl
+
 resource "azurerm_postgresql_flexible_server" "this" {
   name                   = var.postgres_name
   resource_group_name    = var.resource_group_name
@@ -3379,8 +3379,8 @@ resource "azurerm_postgresql_flexible_server" "this" {
 }
 ```
 🚀 Deployment Steps
-bash
-```
+```bash
+
 terraform init
 terraform plan
 terraform apply -auto-approve
@@ -3388,8 +3388,8 @@ Post‑Apply
 ```
 Export kubeconfig:
 
-bash
-```
+```bash
+
 terraform output -raw module.aks.kube_config > kubeconfig
 export KUBECONFIG=$(pwd)/kubeconfig
 kubectl get nodes
@@ -3404,8 +3404,8 @@ PostgreSQL Zone Error → Fixed by explicitly setting zone = "1" and disabling H
 🧹 Cleanup
 Destroy resources to avoid cost:
 
-bash
-```
+```bash
+
 terraform destroy -auto-approve
 ```
 🎯 Outcome

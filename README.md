@@ -3192,3 +3192,227 @@ You can say:
 
 “We define variables in variables.tf for clarity and type safety, and supply values via terraform.tfvars. This separation ensures clean, production‑ready Terraform code and makes it easy to manage multiple environments.”
 ```
+
+
+
+## Day 23 – Terraform Azure Modular Infrastructure
+📌 Overview
+On Day 23, we built a modular Terraform project that provisions:
+
+Azure Resource Group
+
+Azure Container Registry (ACR)
+
+Azure Kubernetes Service (AKS)
+
+PostgreSQL Flexible Server
+
+Remote backend for state management
+
+This project follows production‑style best practices: modular structure, variable separation, remote state, and reusable code. It also documents real‑world troubleshooting (name uniqueness, VM size restrictions, zone mismatches).
+
+📂 Project Structure
+Code
+```
+terraform-azure/
+│
+├── backend.tf
+├── provider.tf
+├── variables.tf
+├── terraform.tfvars
+├── main.tf
+│
+└── modules/
+    ├── resource-group/
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    │
+    ├── acr/
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    │
+    ├── aks/
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    │
+    └── postgres/
+        ├── main.tf
+        ├── variables.tf
+        └── outputs.tf
+```
+⚙️ Root Files
+`provider.tf`
+hcl
+```
+provider "azurerm" {
+  features {}
+}
+variables.tf
+hcl
+variable "location" {}
+variable "resource_group_name" {}
+variable "acr_name" {}
+variable "aks_name" {}
+variable "postgres_name" {}
+variable "db_admin_user" {}
+variable "db_admin_password" {
+  sensitive = true
+}
+```
+`terraform.tfvars`
+hcl
+```
+location            = "Central US"
+resource_group_name = "tf-devops-rg"
+acr_name            = "tfdevopsacr98765"
+aks_name            = "tf-devops-aks"
+postgres_name       = "tfdevopspg98765"
+db_admin_user       = "appuser"
+db_admin_password   = "StrongPass@123"
+backend.tf
+hcl
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "tfstate-rg"
+    storage_account_name = "tfstateaccount123"
+    container_name       = "tfstate"
+    key                  = "terraform.tfstate"
+  }
+}
+```
+`main.tf`
+
+hcl
+```
+module "resource_group" {
+  source   = "./modules/resource-group"
+  name     = var.resource_group_name
+  location = var.location
+}
+
+module "acr" {
+  source              = "./modules/acr"
+  acr_name            = var.acr_name
+  resource_group_name = module.resource_group.name
+  location            = var.location
+}
+
+module "aks" {
+  source              = "./modules/aks"
+  aks_name            = var.aks_name
+  resource_group_name = module.resource_group.name
+  location            = var.location
+}
+
+module "postgres" {
+  source              = "./modules/postgres"
+  postgres_name       = var.postgres_name
+  resource_group_name = module.resource_group.name
+  location            = var.location
+  admin_user          = var.db_admin_user
+  admin_password      = var.db_admin_password
+}
+```
+📦 Modules
+`Resource Group`
+hcl
+```
+resource "azurerm_resource_group" "this" {
+  name     = var.name
+  location = var.location
+}
+ACR
+hcl
+resource "azurerm_container_registry" "this" {
+  name                = var.acr_name
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  sku                 = "Basic"
+  admin_enabled       = true
+}
+```
+`AKS`
+hcl
+```
+resource "azurerm_kubernetes_cluster" "this" {
+  name                = var.aks_name
+  location            = var.location
+  resource_group_name = var.resource_group_name
+  dns_prefix          = var.aks_name
+
+  default_node_pool {
+    name       = "default"
+    node_count = 2
+    vm_size    = "Standard_D2s_v3"   # Supported in Central US
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  network_profile {
+    network_plugin = "azure"
+  }
+}
+```
+`PostgreSQL`
+hcl
+```
+resource "azurerm_postgresql_flexible_server" "this" {
+  name                   = var.postgres_name
+  resource_group_name    = var.resource_group_name
+  location               = var.location
+  version                = "14"
+  administrator_login    = var.admin_user
+  administrator_password = var.admin_password
+  sku_name               = "B_Standard_B1ms"
+  storage_mb             = 32768
+
+  zone = "1"
+
+  high_availability {
+    mode = "Disabled"
+  }
+}
+```
+🚀 Deployment Steps
+bash
+```
+terraform init
+terraform plan
+terraform apply -auto-approve
+Post‑Apply
+```
+Export kubeconfig:
+
+bash
+```
+terraform output -raw module.aks.kube_config > kubeconfig
+export KUBECONFIG=$(pwd)/kubeconfig
+kubectl get nodes
+```
+🛠️ Troubleshooting Notes
+ACR Name Conflict → Must be globally unique. Changed to tfdevopsacr98765.
+
+AKS VM Size Restriction → Standard_B2s not allowed in Central US. Switched to Standard_D2s_v3.
+
+PostgreSQL Zone Error → Fixed by explicitly setting zone = "1" and disabling HA.
+
+🧹 Cleanup
+Destroy resources to avoid cost:
+
+bash
+```
+terraform destroy -auto-approve
+```
+🎯 Outcome
+By the end of Day 23:
+
+You deployed a modular, production‑style Terraform project.
+
+You overcame region restrictions, VM size quotas, and zone mismatches.
+
+You now have a portfolio‑ready project demonstrating real‑world troubleshooting.

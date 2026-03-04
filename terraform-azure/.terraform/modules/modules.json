@@ -1,0 +1,1 @@
+{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"acr","Source":"./modules/acr","Dir":"modules/acr"},{"Key":"aks","Source":"./modules/aks","Dir":"modules/aks"},{"Key":"postgres","Source":"./modules/postgres","Dir":"modules/postgres"},{"Key":"resource_group","Source":"./modules/resource-group","Dir":"modules/resource-group"}]}

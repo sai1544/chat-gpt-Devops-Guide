@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: devopsacr7295.azurecr.io/devops-python-app:v1
+          image: devopsacr21510.azurecr.io/chat-gpt-devops-guide:latest
           ports:
             - containerPort: 8000
           envFrom:

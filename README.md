@@ -3907,3 +3907,168 @@ Answer:
 We use namespace-level ResourceQuotas and LimitRanges to enforce resource governance and prevent workloads from consuming excessive cluster resources.
 
 That’s strong DevOps language.
+
+
+
+
+# Day 27 – Terraform CI/CD with GitHub Actions
+
+## 📌 Overview
+This workflow automates **Terraform validation and deployment** using GitHub Actions.  
+It ensures that every infrastructure change in the `terraform-azure/` directory is:
+- Properly formatted
+- Initialized with providers/backends
+- Planned for review
+- Optionally applied to Azure (on `main` branch)
+
+---
+
+## ⚙️ Workflow Trigger
+```yaml
+on:
+  push:
+    paths:
+      - 'terraform-azure/**'
+    branches:
+      - main
+```
+Runs only when files inside terraform-azure/ are modified.
+
+Restricted to the main branch for safe deployment.
+
+🛠️ Job Steps
+1. Checkout Code
+Pulls repository code into the runner:
+
+```yaml
+- uses: actions/checkout@v3
+```
+2. Azure Login
+Authenticates to Azure using a service principal stored in GitHub Secrets:
+
+```yaml
+- uses: azure/login@v2
+  with:
+    creds: ${{ secrets.AZURE_CREDENTIALS }}
+```
+3. Setup Terraform
+Installs Terraform CLI:
+
+```yaml
+- uses: hashicorp/setup-terraform@v3
+```
+4. Terraform Init
+Initializes Terraform in the working directory:
+
+```yaml
+- run: terraform init
+  working-directory: ./terraform-azure
+```
+5. Terraform Format Check
+Validates .tf file formatting:
+
+```yaml
+- run: terraform fmt -check
+  working-directory: ./terraform-azure
+```
+6. Terraform Plan
+Generates an execution plan:
+
+```yaml
+- run: terraform plan -out=tfplan
+  working-directory: ./terraform-azure
+```
+7. Terraform Apply
+Applies the plan automatically (only on main branch):
+
+```yaml
+- run: terraform apply -auto-approve tfplan
+  working-directory: ./terraform-azure
+  if: github.ref == 'refs/heads/main'
+```
+🔐 Secrets Required
+AZURE_CREDENTIALS → JSON output from:
+
+```bash
+az ad sp create-for-rbac --name "terraform-ci" \
+  --role Contributor \
+  --scopes /subscriptions/<SUBSCRIPTION_ID> \
+  --sdk-auth
+```
+Paste the JSON into GitHub Secrets.
+
+
+
+```
+name: Terraform CI/CD
+
+on:
+  push:
+    paths:
+      - 'terraform-azure/**'
+    branches:
+      - main   # only apply on main branch
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./terraform-azure
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+        working-directory: ./terraform-azure
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        working-directory: ./terraform-azure
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve tfplan
+        working-directory: ./terraform-azure
+```
+✅ Best Practices
+```Use separate workflows for plan (CI) and apply (CD).
+
+Protect main branch with manual approval gates (GitHub Environments).
+
+Store sensitive values in GitHub Secrets.
+
+Keep Terraform state in a remote backend (Azure Storage, S3, etc.) for team collaboration.
+```
+🚀 Benefits
+Automated validation of Terraform code.
+
+Consistent deployments with no manual steps.
+
+Secure authentication via service principal.
+
+Clear separation of CI (validation) and CD (deployment).
+
+📂 Directory Structure
+```Code
+repo-root/
+├── terraform-azure/
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   └── modules/
+└── .github/
+    └── workflows/
+        └── terraform-ci.yaml
+```

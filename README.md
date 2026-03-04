@@ -3734,3 +3734,176 @@ Answer:
 We use Terraform workspaces to isolate environments such as dev, staging, and production while sharing the same infrastructure codebase.
 
 That’s a strong DevOps answer.
+
+
+
+# 🚀 Day 26 — Namespace Strategy + Resource Governance
+
+## 📌 Overview
+Up to now, workloads in your cluster may have been deployed into a single namespace (like `app` or `default`).  
+In production systems, this is risky because all workloads share resources without boundaries.
+
+A better design is to separate workloads by **environment** and apply **resource governance**.
+
+### Example Namespace Structure
+- `dev`
+- `staging`
+- `prod`
+- `monitoring`
+- `ingress-nginx`
+
+This prevents:
+- Noisy workloads affecting production
+- Resource starvation
+- Accidental deployments into the wrong environment
+
+---
+
+## 🎯 Goal of Day 26
+By the end of today, you will:
+- ✔ Create dev / staging / prod namespaces
+- ✔ Apply **ResourceQuotas**
+- ✔ Apply **LimitRanges**
+- ✔ Deploy app into the `dev` namespace
+- ✔ Understand cluster resource governance
+
+---
+
+## 🛠 Step 1 — Create Namespaces
+Namespaces isolate workloads by environment.
+
+```bash
+kubectl create namespace dev
+kubectl create namespace staging
+kubectl create namespace prod
+```
+Verify:
+
+```bash
+kubectl get ns
+```
+🛠 Step 2 — Apply Resource Quota
+A ResourceQuota sets hard limits on how much of the cluster’s resources a namespace can consume.
+Think of it as a budget for CPU, memory, and pods.
+
+resource-quota-dev.yaml:
+
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dev-quota
+  namespace: dev
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    pods: "10"
+```
+Apply:
+
+```bash
+kubectl apply -f resource-quota-dev.yaml
+```
+Check:
+
+```bash
+kubectl describe quota dev-quota -n dev
+```
+🛠 Step 3 — Apply Limit Range
+A LimitRange sets default requests and limits per container.
+This ensures every pod has sensible resource boundaries, even if developers forget to specify them.
+
+limit-range-dev.yaml:
+
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: dev-limit-range
+  namespace: dev
+spec:
+  limits:
+  - default:
+      cpu: 500m
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container
+```
+Apply:
+
+```bash
+kubectl apply -f limit-range-dev.yaml
+```
+Verify:
+
+```bash
+kubectl describe limitrange dev-limit-range -n dev
+```
+🛠 Step 4 — Deploy App to Dev Namespace
+Update your deployment manifest to target the dev namespace:
+
+```yaml
+metadata:
+  name: devops-python-app
+  namespace: dev
+```
+Then apply:
+
+```bash
+kubectl apply -f deployment.yaml -n dev
+kubectl apply -f service.yaml -n dev
+kubectl apply -f ingress.yaml -n dev
+```
+Verify:
+
+```bash
+kubectl get pods -n dev
+kubectl get svc -n dev
+kubectl get ingress -n dev
+```
+🧠 Key Concepts
+ResourceQuota
+Namespace-wide ceiling (team budget).
+
+Prevents one environment from consuming all cluster resources.
+
+Example: “Dev team can only run 10 pods and use up to 8 GB memory.”
+
+LimitRange
+Per-container defaults and caps (individual allowance).
+
+Ensures every pod has requests/limits even if not specified.
+
+Example: “Each container gets 128Mi memory by default, max 512Mi.”
+
+Together:
+
+ResourceQuota = team budget
+
+LimitRange = individual allowance
+
+🎯 Day 26 Success Checklist
+```
+✔ Namespaces created (dev, staging, prod)
+
+✔ ResourceQuota applied to dev
+
+✔ LimitRange applied to dev
+
+✔ App deployed to dev namespace
+```
+📈 Interview Power
+If asked:
+
+“How do you manage resource isolation in Kubernetes?”
+
+Answer:
+
+We use namespace-level ResourceQuotas and LimitRanges to enforce resource governance and prevent workloads from consuming excessive cluster resources.
+
+That’s strong DevOps language.

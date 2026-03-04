@@ -3924,6 +3924,53 @@ It ensures that every infrastructure change in the `terraform-azure/` directory 
 ---
 
 ## ⚙️ Workflow Trigger
+
+```terraform.yaml
+
+name: Terraform CI/CD
+
+on:
+  push:
+    paths:
+      - 'terraform-azure/**'
+    branches:
+      - main   # only apply on main branch
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./terraform-azure
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+        working-directory: ./terraform-azure
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        working-directory: ./terraform-azure
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve tfplan
+        working-directory: ./terraform-azure
+```
+## Explanation
+
 ```yaml
 on:
   push:
@@ -3937,6 +3984,7 @@ Runs only when files inside terraform-azure/ are modified.
 Restricted to the main branch for safe deployment.
 
 🛠️ Job Steps
+
 1. Checkout Code
 Pulls repository code into the runner:
 
@@ -3997,51 +4045,6 @@ az ad sp create-for-rbac --name "terraform-ci" \
 ```
 Paste the JSON into GitHub Secrets.
 
-
-
-```
-name: Terraform CI/CD
-
-on:
-  push:
-    paths:
-      - 'terraform-azure/**'
-    branches:
-      - main   # only apply on main branch
-
-jobs:
-  terraform:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        run: terraform init
-        working-directory: ./terraform-azure
-
-      - name: Terraform Format Check
-        run: terraform fmt -check
-        working-directory: ./terraform-azure
-
-      - name: Terraform Plan
-        run: terraform plan -out=tfplan
-        working-directory: ./terraform-azure
-
-      - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        run: terraform apply -auto-approve tfplan
-        working-directory: ./terraform-azure
-```
 ✅ Best Practices
 ```Use separate workflows for plan (CI) and apply (CD).
 

@@ -3492,3 +3492,418 @@ You deployed a modular, production‑style Terraform project.
 You overcame region restrictions, VM size quotas, and zone mismatches.
 
 You now have a portfolio‑ready project demonstrating real‑world troubleshooting.
+
+
+## 🚀 Day 24 — Full Reproducibility Test (Destroy & Recreate Drill)
+
+## 📌 Overview
+Up to now, we’ve been building infrastructure incrementally.  
+Day 24 is different — it’s about **proving reproducibility**.  
+
+> “My infrastructure is fully reproducible from code.”
+
+This is a **maturity checkpoint** in Infrastructure as Code (IaC).  
+If you can destroy and recreate everything without manual steps, you’ve reached true platform engineering level.
+
+---
+
+## 🎯 Goal of Day 24
+By the end of today, you will:
+- ✔ Destroy entire infrastructure
+- ✔ Recreate from scratch
+- ✔ Redeploy application
+- ✔ Verify ingress works
+- ✔ Confirm zero manual steps
+
+---
+
+## 🛠 Step 1 — Destroy Everything
+From the Terraform root:
+```bash
+terraform destroy
+```
+Type:
+
+```Code
+
+yes
+```
+Wait until:
+
+```Code
+Destroy complete
+```
+Verify in Azure Portal → nothing left.
+
+🛠 Step 2 — Recreate Infrastructure
+Run:
+
+```bash
+terraform apply
+```
+Terraform will provision:
+
+AKS cluster
+
+PostgreSQL Flexible Server
+
+Azure Container Registry (ACR)
+
+🛠 Step 3 — Get kubeconfig
+Export kubeconfig for AKS:
+
+```bash
+terraform output -raw module.aks.kube_config > kubeconfig
+export KUBECONFIG=$(pwd)/kubeconfig
+kubectl get nodes
+```
+🛠 Step 4 — Redeploy Application
+Reapply Kubernetes manifests:
+
+```bash
+kubectl create namespace app
+kubectl apply -f db-secret.yaml -n app
+kubectl apply -f deployment.yaml -n app
+kubectl apply -f service.yaml -n app
+kubectl apply -f ingress.yaml -n app
+```
+Test endpoints:
+
+```bash
+curl http://<INGRESS-IP>/health
+curl http://<INGRESS-IP>/read
+curl http://<INGRESS-IP>/write
+```
+If everything works → Day 24 success!
+
+🧠 Why This Is Massive
+Most learners:
+
+Build once
+
+Never test reproducibility
+
+Panic if infra is deleted
+
+You:
+
+Can destroy and recreate confidently
+
+Prove infra is code-driven, not manual
+
+This is real IaC maturity.
+
+📈 Interview Power
+If asked:
+
+“What happens if someone deletes your cluster?”
+
+You answer:
+
+We recreate the entire platform using Terraform modules and redeploy through CI/CD. Everything is reproducible from code with zero manual steps.
+
+That’s a calm, professional engineering mindset.
+
+🎯 Day 24 Success Checklist
+```
+✔ Infra destroyed
+
+✔ Infra recreated
+
+✔ Kubeconfig exported
+
+✔ App redeployed
+
+✔ Ingress verified
+
+✔ No manual steps
+```
+
+
+
+## 🚀 Day 25 — Terraform Workspaces (Multi-Environment Infrastructure)
+
+## 📌 Overview
+Until now, we managed infrastructure in a single environment.  
+In real-world companies, infrastructure is split into **multiple environments**:
+
+- **dev** — for development and testing
+- **staging** — for pre-production validation
+- **prod** — for production workloads
+
+Each environment requires:
+- Separate Terraform state
+- Different resource sizes/configurations
+- Strict isolation
+
+Terraform **workspaces** help us achieve this while reusing the same codebase.
+
+---
+
+## 🎯 Goal of Day 25
+By the end of this day, you will:
+- ✔ Create Terraform workspaces
+- ✔ Manage dev / staging / prod environments
+- ✔ Understand environment isolation
+- ✔ Deploy infrastructure to the **dev** workspace
+
+---
+
+## 🛠 Step 1 — Check Current Workspace
+Run:
+```bash
+terraform workspace lis
+```
+Output:
+
+```Code
+* default
+```
+🛠 Step 2 — Create Workspaces
+```bash
+terraform workspace new dev
+terraform workspace new staging
+terraform workspace new prod
+```
+Check again:
+
+```bash
+terraform workspace list
+```
+Example output:
+
+```Code
+default
+dev
+staging
+* prod
+```
+🛠 Step 3 — Switch Workspace
+Select the workspace you want to work in:
+
+```bash
+terraform workspace select dev
+```
+Now your infrastructure belongs to the dev environment.
+Each workspace maintains its own state file.
+
+🛠 Step 4 — Apply Infrastructure to DEV
+Deploy resources in the dev environment:
+
+```bash
+terraform apply
+```
+Later, you can switch to staging:
+
+```bash
+terraform workspace select staging
+terraform apply
+```
+This creates isolated infrastructure for staging.
+
+🧠 What This Means
+Instead of one cluster, you can have:
+
+dev cluster
+
+staging cluster
+
+prod cluster
+
+All managed from the same Terraform codebase.
+
+This is professional environment management.
+
+✅ Day 25 Success Checklist
+```
+✔ Workspaces created
+
+✔ Switched to dev workspace
+
+✔ Terraform apply works
+
+✔ Infra created in dev environment
+```
+📈 Interview Tip
+If asked:
+
+“How do you manage multiple environments with Terraform?”
+
+Answer:
+
+We use Terraform workspaces to isolate environments such as dev, staging, and production while sharing the same infrastructure codebase.
+
+That’s a strong DevOps answer.
+
+
+
+# 🚀 Day 26 — Namespace Strategy + Resource Governance
+
+## 📌 Overview
+Up to now, workloads in your cluster may have been deployed into a single namespace (like `app` or `default`).  
+In production systems, this is risky because all workloads share resources without boundaries.
+
+A better design is to separate workloads by **environment** and apply **resource governance**.
+
+### Example Namespace Structure
+- `dev`
+- `staging`
+- `prod`
+- `monitoring`
+- `ingress-nginx`
+
+This prevents:
+- Noisy workloads affecting production
+- Resource starvation
+- Accidental deployments into the wrong environment
+
+---
+
+## 🎯 Goal of Day 26
+By the end of today, you will:
+- ✔ Create dev / staging / prod namespaces
+- ✔ Apply **ResourceQuotas**
+- ✔ Apply **LimitRanges**
+- ✔ Deploy app into the `dev` namespace
+- ✔ Understand cluster resource governance
+
+---
+
+## 🛠 Step 1 — Create Namespaces
+Namespaces isolate workloads by environment.
+
+```bash
+kubectl create namespace dev
+kubectl create namespace staging
+kubectl create namespace prod
+```
+Verify:
+
+```bash
+kubectl get ns
+```
+🛠 Step 2 — Apply Resource Quota
+A ResourceQuota sets hard limits on how much of the cluster’s resources a namespace can consume.
+Think of it as a budget for CPU, memory, and pods.
+
+resource-quota-dev.yaml:
+
+```yaml
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dev-quota
+  namespace: dev
+spec:
+  hard:
+    requests.cpu: "2"
+    requests.memory: 4Gi
+    limits.cpu: "4"
+    limits.memory: 8Gi
+    pods: "10"
+```
+Apply:
+
+```bash
+kubectl apply -f resource-quota-dev.yaml
+```
+Check:
+
+```bash
+kubectl describe quota dev-quota -n dev
+```
+🛠 Step 3 — Apply Limit Range
+A LimitRange sets default requests and limits per container.
+This ensures every pod has sensible resource boundaries, even if developers forget to specify them.
+
+limit-range-dev.yaml:
+
+```yaml
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: dev-limit-range
+  namespace: dev
+spec:
+  limits:
+  - default:
+      cpu: 500m
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container
+```
+Apply:
+
+```bash
+kubectl apply -f limit-range-dev.yaml
+```
+Verify:
+
+```bash
+kubectl describe limitrange dev-limit-range -n dev
+```
+🛠 Step 4 — Deploy App to Dev Namespace
+Update your deployment manifest to target the dev namespace:
+
+```yaml
+metadata:
+  name: devops-python-app
+  namespace: dev
+```
+Then apply:
+
+```bash
+kubectl apply -f deployment.yaml -n dev
+kubectl apply -f service.yaml -n dev
+kubectl apply -f ingress.yaml -n dev
+```
+Verify:
+
+```bash
+kubectl get pods -n dev
+kubectl get svc -n dev
+kubectl get ingress -n dev
+```
+🧠 Key Concepts
+ResourceQuota
+Namespace-wide ceiling (team budget).
+
+Prevents one environment from consuming all cluster resources.
+
+Example: “Dev team can only run 10 pods and use up to 8 GB memory.”
+
+LimitRange
+Per-container defaults and caps (individual allowance).
+
+Ensures every pod has requests/limits even if not specified.
+
+Example: “Each container gets 128Mi memory by default, max 512Mi.”
+
+Together:
+
+ResourceQuota = team budget
+
+LimitRange = individual allowance
+
+🎯 Day 26 Success Checklist
+```
+✔ Namespaces created (dev, staging, prod)
+
+✔ ResourceQuota applied to dev
+
+✔ LimitRange applied to dev
+
+✔ App deployed to dev namespace
+```
+📈 Interview Power
+If asked:
+
+“How do you manage resource isolation in Kubernetes?”
+
+Answer:
+
+We use namespace-level ResourceQuotas and LimitRanges to enforce resource governance and prevent workloads from consuming excessive cluster resources.
+
+That’s strong DevOps language.

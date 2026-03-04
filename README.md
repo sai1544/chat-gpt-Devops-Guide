@@ -3492,3 +3492,245 @@ You deployed a modular, production‑style Terraform project.
 You overcame region restrictions, VM size quotas, and zone mismatches.
 
 You now have a portfolio‑ready project demonstrating real‑world troubleshooting.
+
+
+## 🚀 Day 24 — Full Reproducibility Test (Destroy & Recreate Drill)
+
+## 📌 Overview
+Up to now, we’ve been building infrastructure incrementally.  
+Day 24 is different — it’s about **proving reproducibility**.  
+
+> “My infrastructure is fully reproducible from code.”
+
+This is a **maturity checkpoint** in Infrastructure as Code (IaC).  
+If you can destroy and recreate everything without manual steps, you’ve reached true platform engineering level.
+
+---
+
+## 🎯 Goal of Day 24
+By the end of today, you will:
+- ✔ Destroy entire infrastructure
+- ✔ Recreate from scratch
+- ✔ Redeploy application
+- ✔ Verify ingress works
+- ✔ Confirm zero manual steps
+
+---
+
+## 🛠 Step 1 — Destroy Everything
+From the Terraform root:
+```bash
+terraform destroy
+```
+Type:
+
+```Code
+
+yes
+```
+Wait until:
+
+```Code
+Destroy complete
+```
+Verify in Azure Portal → nothing left.
+
+🛠 Step 2 — Recreate Infrastructure
+Run:
+
+```bash
+terraform apply
+```
+Terraform will provision:
+
+AKS cluster
+
+PostgreSQL Flexible Server
+
+Azure Container Registry (ACR)
+
+🛠 Step 3 — Get kubeconfig
+Export kubeconfig for AKS:
+
+```bash
+terraform output -raw module.aks.kube_config > kubeconfig
+export KUBECONFIG=$(pwd)/kubeconfig
+kubectl get nodes
+```
+🛠 Step 4 — Redeploy Application
+Reapply Kubernetes manifests:
+
+```bash
+kubectl create namespace app
+kubectl apply -f db-secret.yaml -n app
+kubectl apply -f deployment.yaml -n app
+kubectl apply -f service.yaml -n app
+kubectl apply -f ingress.yaml -n app
+```
+Test endpoints:
+
+```bash
+curl http://<INGRESS-IP>/health
+curl http://<INGRESS-IP>/read
+curl http://<INGRESS-IP>/write
+```
+If everything works → Day 24 success!
+
+🧠 Why This Is Massive
+Most learners:
+
+Build once
+
+Never test reproducibility
+
+Panic if infra is deleted
+
+You:
+
+Can destroy and recreate confidently
+
+Prove infra is code-driven, not manual
+
+This is real IaC maturity.
+
+📈 Interview Power
+If asked:
+
+“What happens if someone deletes your cluster?”
+
+You answer:
+
+We recreate the entire platform using Terraform modules and redeploy through CI/CD. Everything is reproducible from code with zero manual steps.
+
+That’s a calm, professional engineering mindset.
+
+🎯 Day 24 Success Checklist
+```
+✔ Infra destroyed
+
+✔ Infra recreated
+
+✔ Kubeconfig exported
+
+✔ App redeployed
+
+✔ Ingress verified
+
+✔ No manual steps
+```
+
+
+
+## 🚀 Day 25 — Terraform Workspaces (Multi-Environment Infrastructure)
+
+## 📌 Overview
+Until now, we managed infrastructure in a single environment.  
+In real-world companies, infrastructure is split into **multiple environments**:
+
+- **dev** — for development and testing
+- **staging** — for pre-production validation
+- **prod** — for production workloads
+
+Each environment requires:
+- Separate Terraform state
+- Different resource sizes/configurations
+- Strict isolation
+
+Terraform **workspaces** help us achieve this while reusing the same codebase.
+
+---
+
+## 🎯 Goal of Day 25
+By the end of this day, you will:
+- ✔ Create Terraform workspaces
+- ✔ Manage dev / staging / prod environments
+- ✔ Understand environment isolation
+- ✔ Deploy infrastructure to the **dev** workspace
+
+---
+
+## 🛠 Step 1 — Check Current Workspace
+Run:
+```bash
+terraform workspace lis
+```
+Output:
+
+```Code
+* default
+```
+🛠 Step 2 — Create Workspaces
+```bash
+terraform workspace new dev
+terraform workspace new staging
+terraform workspace new prod
+```
+Check again:
+
+```bash
+terraform workspace list
+```
+Example output:
+
+```Code
+default
+dev
+staging
+* prod
+```
+🛠 Step 3 — Switch Workspace
+Select the workspace you want to work in:
+
+```bash
+terraform workspace select dev
+```
+Now your infrastructure belongs to the dev environment.
+Each workspace maintains its own state file.
+
+🛠 Step 4 — Apply Infrastructure to DEV
+Deploy resources in the dev environment:
+
+```bash
+terraform apply
+```
+Later, you can switch to staging:
+
+```bash
+terraform workspace select staging
+terraform apply
+```
+This creates isolated infrastructure for staging.
+
+🧠 What This Means
+Instead of one cluster, you can have:
+
+dev cluster
+
+staging cluster
+
+prod cluster
+
+All managed from the same Terraform codebase.
+
+This is professional environment management.
+
+✅ Day 25 Success Checklist
+```
+✔ Workspaces created
+
+✔ Switched to dev workspace
+
+✔ Terraform apply works
+
+✔ Infra created in dev environment
+```
+📈 Interview Tip
+If asked:
+
+“How do you manage multiple environments with Terraform?”
+
+Answer:
+
+We use Terraform workspaces to isolate environments such as dev, staging, and production while sharing the same infrastructure codebase.
+
+That’s a strong DevOps answer.

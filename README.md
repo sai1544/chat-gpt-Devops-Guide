@@ -4254,3 +4254,261 @@ You can answer:
 “We implement RBAC with Roles and RoleBindings tied to ServiceAccounts, following the principle of least privilege to restrict access to only required resources.”
 
 That’s a strong DevOps answer.
+
+
+
+# Day 29 – Advanced Network Policies (Zero-Trust Pod Networking)
+
+## 📌 Overview
+Earlier you created a basic NetworkPolicy.  
+Now we move to **production-style zero-trust networking**:
+
+- **Default: deny everything**
+- **Allow: only required traffic**
+
+This prevents compromised pods from scanning the cluster or talking to services they shouldn’t.
+
+---
+
+## 🧠 Analogy
+Think of NetworkPolicies like **office security gates**:
+
+- **Default deny = Locked building** (no one can enter or leave).
+- **Allow ingress = Reception desk** (only approved visitors can enter).
+- **Allow DB egress = Employee badge swipe to server room** (only backend pods can access DB).
+
+Together, they enforce **zero-trust networking**: pods only talk to what they truly need.
+
+---
+
+## 🎯 Goal of Day 29
+By the end of today you will:
+✔ Apply default deny network policy  
+✔ Allow traffic only from ingress controller  
+✔ Allow backend to access PostgreSQL  
+✔ Understand zero-trust networking  
+
+---
+
+## 🛠 Step 1 — Default Deny Policy
+File: `default-deny.yaml`
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: dev
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+```
+🔎 Explanation
+podSelector: {} → selects all pods in the dev namespace.
+
+policyTypes: Ingress, Egress → blocks both incoming and outgoing traffic.
+
+This is the zero-trust baseline: deny everything first.
+
+Apply:
+
+```bash
+kubectl apply -f default-deny.yaml
+```
+🛠 Step 2 — Allow Ingress Controller Traffic
+File: allow-ingress.yaml
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-ingress
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app: devops-python-app
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8000
+  policyTypes:
+  - Ingress
+```
+🔎 Explanation
+podSelector → selects backend pods (app=devops-python-app).
+
+ingress.from.namespaceSelector → only allows traffic from the Ingress Controller namespace (ingress-nginx).
+
+ports → restricts ingress traffic to TCP port 8000 (your app’s listening port).
+
+This ensures only ingress controller can talk to backend pods.
+
+Apply:
+
+```bash
+kubectl apply -f allow-ingress.yaml
+```
+🛠 Step 3 — Allow Database Access
+File: allow-db-egress.yaml
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-db
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app: devops-python-app
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+    - protocol: TCP
+      port: 5432
+  policyTypes:
+  - Egress
+```
+🔎 Explanation
+podSelector → selects backend pods.
+
+egress.to.ipBlock → allows outbound traffic (here simplified to all IPs).
+
+ports → restricts traffic to TCP port 5432 (PostgreSQL).
+
+This ensures backend pods can reach the DB, but not arbitrary external sites.
+
+Apply:
+
+```bash
+kubectl apply -f allow-db-egress.yaml
+```
+🧪 Step 4 — Testing Policies
+1. Baseline (No Policies)
+Delete all policies:
+
+```bash
+kubectl delete networkpolicy --all -n dev
+```
+From a test pod in dev:
+
+```bash
+wget --spider http://devops-python-app:8000/health
+```
+✅ Works (any pod can reach backend).
+
+2. Default Deny
+```bash
+kubectl apply -f default-deny.yaml
+```
+From a test pod in dev:
+
+```bash
+wget --spider http://devops-python-app:8000/health
+```
+❌ Should fail (blocked).
+
+3. Allow Ingress Controller
+```bash
+kubectl apply -f allow-ingress.yaml
+```
+From a pod in ingress-nginx namespace → ✅ Should succeed.
+
+From a pod in dev (like BusyBox) → ❌ Should fail.
+
+4. Allow DB Egress
+From backend pod:
+
+```bash
+kubectl exec -it <backend-pod> -n dev -- nc -zv <postgres-service-ip> 5432
+```
+✅ Should succeed.
+
+Try another port:
+
+```bash
+kubectl exec -it <backend-pod> -n dev -- nc -zv google.com 80
+```
+❌ Should fail.
+
+## Even After Applying Policy If Its Not Working 
+
+Policy is defined: Kubernetes accepted your default-deny.yaml.
+
+Policy is not enforced: AKS only enforces NetworkPolicies if the cluster was created with network policy support (azure or calico).
+
+If your cluster was created without that option, the API stores the policy but the CNI plugin ignores it — so traffic flows freely.
+
+✅ How to Check Enforcement
+Run:
+
+```bash
+az aks show -g <resource-group> -n <cluster-name> --query networkProfile.networkPolicy
+```
+Possible outputs:
+
+"calico" → Calico network policy is enabled.
+
+"azure" → Azure network policy is enabled.
+
+null → No enforcement; policies won’t work.
+
+🛠 How to Fix
+If you see null, you’ll need to recreate the cluster with network policy enabled. Example:
+
+```bash
+az aks create \
+  --resource-group <resource-group> \
+  --name <cluster-name> \
+  --network-plugin azure \
+  --network-policy calico \
+  --node-count 2 \
+  --generate-ssh-keys
+```
+This ensures policies like default-deny are actually enforced.
+
+🧠 Analogy
+Think of this like writing security rules for a building:
+
+You posted the rules (NetworkPolicy).
+
+But if the building doesn’t have locks installed (no network policy enforcement), the rules are just paper — doors stay open.
+
+You need to install locks (enable Calico/Azure network policy) for the rules to take effect.
+
+
+🧠 What You Implemented
+You created a zero-trust networking model:
+
+Traffic flow now looks like:
+
+Code
+User → Ingress Controller → Backend Pod → PostgreSQL
+Everything else is blocked.
+
+This is real production security architecture.
+
+🎯 Day 29 Success Checklist
+```
+✔ Default deny policy applied
+✔ Ingress controller traffic allowed
+✔ DB egress allowed
+✔ Application still works
+```
+💬 Interview Power
+If asked:
+“How do you secure pod-to-pod communication in Kubernetes?”
+
+You can answer:
+
+“We implement NetworkPolicies with a default-deny model and explicitly allow only required ingress and egress traffic, creating a zero-trust networking environment inside the cluster.”
+
+That’s a strong DevOps security answer.

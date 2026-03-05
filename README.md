@@ -4882,3 +4882,147 @@ You can answer:
 “We use Vertical Pod Autoscaler to analyze container resource usage and recommend optimal CPU and memory requests, helping reduce overprovisioning and improve cost efficiency.”
 
 That’s a strong SRE-style answer.
+
+
+# Day 33 – Load Testing with k6 (System Stress Testing)
+
+## 📌 Overview
+So far your app works under normal load.  
+But production systems must handle traffic spikes like:
+
+- 100 users
+- 500 users
+- 2000 users
+- 10000 users
+
+If the system is not tested under load:
+- Latency increases
+- Pods crash
+- DB connection pool exhausts
+- Autoscaling behaves incorrectly
+
+**Load testing helps detect these problems early.**
+
+---
+
+## 🧠 Analogy
+Think of load testing like a **fire drill**:
+- Normal days are calm (few users).  
+- But during a fire drill (traffic spike), you see if exits (autoscaling, DB connections) work properly.  
+- If not tested, chaos happens in real emergencies.
+
+---
+
+## 🎯 Goal of Day 33
+By the end of today you will:
+✔ Install k6 load testing tool  
+✔ Generate traffic to your API  
+✔ Observe HPA scaling behavior  
+✔ Monitor CPU usage and response  
+
+---
+
+## 🛠 Step 1 — Install k6
+Run:
+```bash
+sudo apt update
+sudo apt install k6 -y
+```
+Verify installation:
+
+```bash
+k6 version
+```
+You should see the installed version number.
+
+🛠 Step 2 — Create Load Test Script
+File: `load-test.js`
+```
+javascript
+import http from 'k6/http';
+import { sleep } from 'k6';
+
+export const options = {
+  vus: 50,          // 50 virtual users
+  duration: '60s',  // run for 60 seconds
+};
+
+export default function () {
+  http.get('http://<your-ingress-url>/health');
+  sleep(1);
+}
+```
+👉 Replace <your-ingress-url> with your actual ingress endpoint.
+
+🛠 Step 3 — Run Load Test
+```bash
+k6 run load-test.js
+```
+This simulates 50 concurrent users hitting your API for 60 seconds.
+
+🧪 Step 4 — Observe Scaling
+Open another terminal and watch pods:
+
+```bash
+kubectl get pods -n dev -w
+```
+Monitor CPU usage:
+
+```bash
+kubectl top pods -n dev
+```
+Expected behavior:
+
+Pods increase as HPA triggers.
+
+CPU usage rises with traffic.
+
+Requests are distributed across new pods.
+
+⚠️ Troubleshooting Notes
+Why didn’t pods scale?
+
+If you test /health, it’s too lightweight → CPU stays low.
+
+HPA only scales when CPU crosses target (e.g., 50%).
+
+Fix:
+
+Add a CPU‑intensive endpoint (e.g., /compute with loops).
+
+Increase VUs (e.g., 200 users).
+
+Lower HPA target (e.g., 20%).
+
+🧠 What You Observed
+Load testing flow:
+
+```Code
+Traffic increases
+↓
+CPU usage increases
+↓
+HPA detects threshold breach
+↓
+New pods created
+↓
+Traffic distributed
+```
+This confirms your autoscaling configuration works correctly.
+
+🎯 Day 33 Success Checklist
+```
+✔ k6 installed
+✔ Load test executed
+✔ Traffic generated
+✔ Autoscaling observed
+```
+💬 Interview Power
+If asked:
+“How do you validate autoscaling behavior?”
+
+You can answer:
+
+“We perform load testing using tools like k6 to simulate production traffic patterns and observe how Kubernetes autoscaling reacts to increased load.”
+
+That’s a strong SRE‑level answer.

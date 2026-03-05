@@ -4866,6 +4866,13 @@ Resource efficiency
 ✔ Recommendations visible
 ✔ Resource optimization understood
 ```
+## IMP
+```
+Use HPA when your workload needs more instances to handle load.
+
+Use VPA when your workload needs more resources per instance to run optimally.
+
+```
 💬 Interview Power
 If asked:
 “How do you optimize resource usage in Kubernetes?”

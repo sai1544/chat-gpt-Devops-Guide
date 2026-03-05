@@ -4075,3 +4075,182 @@ repo-root/
     └── workflows/
         └── terraform-ci.yaml
 ```
+
+
+
+## Day 28 – Kubernetes RBAC Hardening
+
+## 📌 Overview
+Most Kubernetes clusters start with very permissive access (like `cluster-admin`).  
+That is dangerous because anyone with that role can:
+- Delete deployments
+- Access secrets
+- Destroy workloads
+- Modify cluster configuration
+
+To secure clusters, we implement **RBAC (Role-Based Access Control)** with the principle of **least privilege**.
+
+---
+
+## 🧠 Analogy
+Think of Kubernetes RBAC like a company:
+
+- **ServiceAccount = Employee badge**  
+  (Identity inside the cluster)
+
+- **Role = Job description**  
+  (Defines what tasks are allowed)
+
+- **RoleBinding = HR assigning that job description to the employee**  
+  (Connects the badge to the permissions)
+
+Together, they enforce **least privilege** — workloads only get the permissions they truly need.
+
+---
+
+## 🎯 Goal of Day 28
+By the end of today you will:
+✔ Create a ServiceAccount  
+✔ Create a Role with limited permissions  
+✔ Bind the role using RoleBinding  
+✔ Verify least privilege security  
+
+---
+
+## 🛠 Step 1 — Create ServiceAccount
+File: `devops-sa.yaml`
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devops-sa
+  namespace: dev
+```
+🔎 Explanation
+apiVersion: v1 → ServiceAccount is a core Kubernetes resource.
+
+kind: ServiceAccount → Defines an identity for workloads.
+
+metadata.name → Name of the ServiceAccount (devops-sa).
+
+metadata.namespace → Scoped to the dev namespace.
+
+This is like issuing an employee badge for someone working in the dev department.
+
+Apply:
+
+```bash
+kubectl apply -f devops-sa.yaml
+kubectl get sa -n dev
+```
+🛠 Step 2 — Create Role
+File: dev-role.yaml
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: dev
+  name: dev-reader
+rules:
+- apiGroups: [""]
+  resources: ["pods","services"]
+  verbs: ["get","list","watch"]
+```
+🔎 Explanation
+kind: Role → Defines permissions scoped to a namespace (dev).
+
+rules.apiGroups → "" means core API group (pods, services).
+
+resources → This role can access pods and services.
+
+verbs → Allowed actions: get, list, watch.
+
+This is like a job description saying:
+“Employee can read pods and services, but cannot modify or delete them.”
+
+Apply:
+
+```bash
+kubectl apply -f dev-role.yaml
+```
+🛠 Step 3 — Create RoleBinding
+File: dev-rolebinding.yaml
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-rolebinding
+  namespace: dev
+subjects:
+- kind: ServiceAccount
+  name: devops-sa
+  namespace: dev
+roleRef:
+  kind: Role
+  name: dev-reader
+  apiGroup: rbac.authorization.k8s.io
+```
+🔎 Explanation
+kind: RoleBinding → Connects a Role to a subject (user/ServiceAccount).
+
+subjects → The ServiceAccount devops-sa in namespace dev.
+
+roleRef → References the dev-reader Role.
+
+This is like HR assigning the job description to the employee badge.
+
+Apply:
+
+```bash
+kubectl apply -f dev-rolebinding.yaml
+```
+🧪 Step 4 — Verify Permissions
+Test allowed action:
+
+```bash
+kubectl auth can-i list pods \
+--as system:serviceaccount:dev:devops-sa \
+-n dev
+```
+Expected: yes
+
+Test restricted action:
+
+```bash
+kubectl auth can-i delete pods \
+--as system:serviceaccount:dev:devops-sa \
+-n dev
+```
+Expected: no
+
+🧠 What You Implemented
+You created least-privilege access control:
+```
+ServiceAccount → Role → RoleBinding
+
+This ensures:
+
+Controlled permissions
+
+Reduced blast radius
+
+Secure cluster operations
+```
+🎯 Day 28 Success Checklist
+```
+✔ ServiceAccount created
+✔ Role created
+✔ RoleBinding created
+✔ Permission test successful
+```
+💬 Interview Power
+If asked:
+“How do you secure Kubernetes access?”
+
+You can answer:
+
+“We implement RBAC with Roles and RoleBindings tied to ServiceAccounts, following the principle of least privilege to restrict access to only required resources.”
+
+That’s a strong DevOps answer.

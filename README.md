@@ -4736,3 +4736,142 @@ If asked:
 You can answer:
 
 Kubernetes uses the Horizontal Pod Autoscaler, which monitors resource metrics such as CPU or memory and automatically adjusts the number of pod replicas based on configured thresholds. This ensures applications scale dynamically to handle traffic spikes without overloading pods.
+
+
+# Day 32 – Vertical Pod Autoscaler (VPA) + Resource Optimization
+
+## 📌 Overview
+Earlier you scaled number of pods (HPA).  
+Today we optimize pod resources.
+
+Example problem:
+- Pod requests: 500m CPU
+- Actual usage: 80m CPU
+- Wasted: 420m CPU per pod → higher cloud cost.
+
+Vertical Pod Autoscaler (VPA) helps suggest better resource sizes.
+
+---
+
+## 🎯 Goal of Day 32
+By the end of today you will:
+✔ Install Vertical Pod Autoscaler  
+✔ Analyze resource recommendations  
+✔ Understand resource right-sizing  
+
+---
+
+## 🛠 Step 1 — Install VPA
+Clone autoscaler repo:
+```bash
+git clone https://github.com/kubernetes/autoscaler.git
+cd autoscaler/vertical-pod-autoscaler
+```
+Deploy VPA components:
+
+```bash
+./hack/vpa-up.sh
+```
+Verify installation:
+
+```bash
+kubectl get pods -n kube-system
+```
+You should see:
+
+vpa-admission-controller
+
+vpa-recommender
+
+vpa-updater
+
+🛠 Step 2 — Create VPA Resource
+File: vpa.yaml
+
+```yaml
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: devops-python-vpa
+  namespace: dev
+spec:
+  targetRef:
+    apiVersion: "apps/v1"
+    kind: Deployment
+    name: devops-python-app
+  updatePolicy:
+    updateMode: "Off"
+```
+Apply:
+
+```bash
+kubectl apply -f vpa.yaml
+```
+🛠 Step 3 — Generate Load (Important!)
+VPA needs traffic data to make recommendations.
+
+Run a load generator pod:
+
+```bash
+kubectl run -it load-generator \
+--image=busybox \
+-- /bin/sh
+```
+Inside pod:
+
+```bash
+while true; do wget -q -O- http://devops-python-service.dev.svc.cluster.local/health; done
+```
+You’ll see repeated:
+
+```Code
+{"message":"DevOps Python App Running"}
+```
+This simulates continuous traffic so VPA can observe CPU/memory usage.
+
+🛠 Step 4 — Check Recommendations
+After a few minutes of traffic:
+
+```bash
+kubectl describe vpa devops-python-vpa -n dev
+```
+You’ll see suggestions like:
+
+```Code
+Container app:
+  CPU: 120m
+  Memory: 150Mi
+```
+These are optimal resource requests based on observed usage.
+
+🧠 What You Learned
+Autoscaling types:
+
+Type	Purpose
+HPA	Scale number of pods
+VPA	Adjust pod resource requests
+Together they balance:
+
+Performance
+
+Cost
+
+Resource efficiency
+
+🎯 Day 32 Success Checklist
+```
+✔ VPA installed
+✔ VPA object created
+✔ Load generator running
+✔ Recommendations visible
+✔ Resource optimization understood
+```
+💬 Interview Power
+If asked:
+“How do you optimize resource usage in Kubernetes?”
+
+You can answer:
+
+“We use Vertical Pod Autoscaler to analyze container resource usage and recommend optimal CPU and memory requests, helping reduce overprovisioning and improve cost efficiency.”
+
+That’s a strong SRE-style answer.

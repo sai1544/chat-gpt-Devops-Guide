@@ -5026,3 +5026,159 @@ You can answer:
 “We perform load testing using tools like k6 to simulate production traffic patterns and observe how Kubernetes autoscaling reacts to increased load.”
 
 That’s a strong SRE‑level answer.
+
+
+
+# Day 34 — Prometheus Alerts & Grafana Integration
+
+## 🎯 Objective
+Set up custom Prometheus alerts (CPU usage & pod restarts), expose Grafana via Ingress, and verify alerts in Grafana’s **Active notifications** panel.
+
+---
+
+## 🛠 Prerequisites
+- Kubernetes cluster with `kube-prometheus-stack` installed
+- Grafana exposed via Ingress at `/grafana`
+- Prometheus and Alertmanager running in `monitoring` namespace
+
+---
+
+## ⚙️ Step 1 — Fix Grafana Ingress Path
+Edit Grafana ConfigMap:
+```ini
+[server]
+domain = 20.62.187.109
+root_url = %(protocol)s://%(domain)s/grafana
+serve_from_sub_path = true
+```
+Restart Grafana pod:
+
+```bash
+kubectl delete pod -l app.kubernetes.io/name=grafana -n monitoring
+```
+Access Grafana:
+
+```Code
+http://20.62.187.109/grafana
+```
+Login:
+
+```bash
+kubectl --namespace monitoring get secret monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 -d ; echo
+Username: admin  
+Password: (decoded secret)
+```
+⚙️ Step 2 — Create Custom Alerts
+Create alerts.yaml:
+
+```yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: custom-alerts
+  namespace: monitoring
+spec:
+  groups:
+  - name: kubernetes-alerts
+    rules:
+    - alert: HighCPUUsage
+      expr: sum(rate(container_cpu_usage_seconds_total[2m])) by (pod) > 0.8
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage detected"
+        description: "Pod CPU usage above 80%"
+
+    - alert: PodRestarting
+      expr: increase(kube_pod_container_status_restarts_total[5m]) > 3
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod restarting frequently"
+        description: "Pod restarted more than 3 times in 5 minutes"
+```
+Apply:
+
+```bash
+kubectl apply -f alerts.yaml -n monitoring
+kubectl get prometheusrules -n monitoring
+```
+⚙️ Step 3 — Trigger Alerts
+```
+Pod Restart Alert
+```
+Delete the same pod multiple times quickly:
+
+```bash
+for i in {1..5}; do kubectl delete pod devops-python-app-66644b66cb-vc284 -n dev; sleep 10; done
+```
+High CPU Alert
+Deploy a stress pod:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cpu-stress
+  namespace: dev
+spec:
+  containers:
+  - name: stress
+    image: progrium/stress
+    args: ["--cpu", "2", "--timeout", "300s"]
+```
+Apply:
+
+```bash
+kubectl apply -f cpu-stress.yaml -n dev
+```
+⚙️ Step 4 — Verify in Grafana
+Go to Alerting → Active notifications
+
+You’ll see:
+
+Default alerts (e.g., Watchdog, KubeProxyDown)
+
+Your custom alerts (HighCPUUsage, PodRestarting) once conditions are met
+
+📉 Inhibition Rules
+Alertmanager uses inhibition rules to suppress “symptom” alerts when a “root cause” alert is firing.
+Example:
+
+```yaml
+inhibit_rules:
+- source_match:
+    alertname: NodeDown
+  target_match:
+    alertname: PodDown
+  equal: ['namespace']
+```
+This prevents PodDown spam when a NodeDown alert is already active.
+
+🧠 Key Learnings
+Grafana must be configured with root_url and serve_from_sub_path for Ingress paths.
+
+PrometheusRule CRDs wrap custom alert definitions.
+
+Alerts only appear in Grafana when conditions are met.
+
+Inhibition rules reduce noise by suppressing related alerts.
+
+📸 Screenshots
+
+Active notifications with default alerts
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/ffb63e24-b148-4e65-9464-c8fef79ff91a" />
+
+Suppressed alert from cpu-stress pod
+<img width="1459" height="480" alt="image" src="https://github.com/user-attachments/assets/b10a8bfb-5ea6-4430-9587-488f49a33040" />
+
+✅ Day 34 Checklist
+[x] Grafana accessible via Ingress
+
+[x] Custom PrometheusRule applied
+
+[x] Alerts triggered and visible in Grafana
+
+[x] Understood inhibition rules

@@ -4617,3 +4617,122 @@ If asked:
 You can answer:
 
 We integrate vulnerability scanning tools like Trivy in our CI/CD pipeline to detect critical and high-severity CVEs before pushing images to the container registry. This ensures that only secure images are deployed to Kubernetes.
+
+
+
+## 🚀 Day 31 — Advanced Autoscaling (HPA Tuning + Metrics Analysis)
+🔥 Overview
+Horizontal Pod Autoscaler (HPA) ensures applications scale dynamically based on workload demand.
+Improper scaling can lead to:
+
+Pods crashing under heavy load
+
+CPU throttling
+
+Failed requests and poor user experience
+
+Today we tune HPA thresholds and observe scaling behavior under simulated traffic.
+
+🎯 Goals
+By the end of Day 31, you will:
+
+✔ Configure HPA with CPU scaling
+
+✔ Observe scaling behavior under load
+
+✔ Understand scaling thresholds
+
+✔ Monitor CPU usage with metrics-server
+
+🛠 Step 1 — Check Metrics Server
+HPA requires metrics-server to collect CPU/memory metrics.
+
+Verify metrics-server
+```bash
+kubectl get deployment metrics-server -n kube-system
+```
+Install if missing
+```bash
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+```
+Test metrics availability
+```bash
+kubectl top nodes
+kubectl top pods -n dev
+```
+🛠 Step 2 — Create HPA
+Configure autoscaling for your app deployment:
+
+```bash
+kubectl autoscale deployment devops-python-app \
+--cpu-percent=50 \
+--min=2 \
+--max=6 \
+-n dev
+```
+Verify HPA
+```bash
+kubectl get hpa -n dev
+```
+Example Output:
+
+```Code
+NAME                TARGETS   MINPODS   MAXPODS
+devops-python-app   20%/50%   2         6
+```
+20%/50% → Current CPU usage vs target threshold
+
+MINPODS → Minimum replicas maintained
+
+MAXPODS → Maximum replicas allowed
+
+🧪 Step 3 — Simulate Load
+Run a load generator pod:
+
+```bash
+kubectl run -it load-generator \
+--image=busybox \
+-- /bin/sh
+```
+Inside the container, generate traffic:
+
+```bash
+while true; do wget -q -O- http://devops-python-service.dev.svc.cluster.local; done
+```
+Watch scaling in action
+```bash
+kubectl get pods -n dev -w
+```
+You should see pods increase as CPU usage crosses the threshold.
+
+🧠 What You Observed
+Autoscaling flow:
+
+```Code
+CPU > threshold
+↓
+HPA triggers scaling
+↓
+New pods created
+↓
+Traffic distributed across replicas
+```
+This prevents overload and ensures smooth handling of traffic spikes.
+
+🎯 Day 31 Success Checklist
+```
+✔ metrics-server working
+
+✔ HPA configured
+
+✔ Pods scale under load
+
+✔ CPU usage observed
+```
+💬 Interview Power
+If asked:
+“How does Kubernetes autoscaling work?”
+
+You can answer:
+
+Kubernetes uses the Horizontal Pod Autoscaler, which monitors resource metrics such as CPU or memory and automatically adjusts the number of pod replicas based on configured thresholds. This ensures applications scale dynamically to handle traffic spikes without overloading pods.

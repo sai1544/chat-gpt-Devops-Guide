@@ -4512,3 +4512,108 @@ You can answer:
 “We implement NetworkPolicies with a default-deny model and explicitly allow only required ingress and egress traffic, creating a zero-trust networking environment inside the cluster.”
 
 That’s a strong DevOps security answer.
+
+
+
+
+## 📦 Day 30 — Container Image Security (Trivy Scanning)
+## 🔥 Overview
+Container images often bundle OS libraries, language runtimes, and dependencies. If these contain vulnerabilities (CVEs), deploying them unscanned can expose production systems to critical risks.
+
+Trivy is a popular open-source vulnerability scanner that integrates seamlessly into DevOps pipelines to detect issues before images are pushed or deployed.
+
+🎯 Goals
+By the end of Day 30, you will:
+
+✔ Install Trivy
+
+✔ Scan your Docker image
+
+✔ Detect vulnerabilities (CVEs)
+
+✔ Understand severity levels (LOW, MEDIUM, HIGH, CRITICAL)
+
+🛠 Step 1 — Install Trivy
+Install via APT (recommended)
+```bash
+sudo apt-get install -y apt-transport-https gnupg lsb-release wget
+wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/trivy.list
+sudo apt-get update
+sudo apt-get install -y trivy
+```
+Verify Installation
+```bash
+trivy --version
+```
+🛠 Step 2 — Scan Your Image
+Example: Scan an ACR Image
+```bash
+trivy image devopsacr21510.azurecr.io/chat-gpt-devops-guide:latest
+```
+Trivy will scan:
+
+OS packages (Ubuntu, Alpine, etc.)
+
+Application libraries (Python, Node.js, Go, etc.)
+
+Known CVEs from vulnerability databases
+
+🧠 Example Output
+```text
+CRITICAL: 2
+HIGH: 5
+MEDIUM: 12
+LOW: 8
+```
+Severity Levels
+LOW → Minor issue, low risk
+
+MEDIUM → Needs fixing, moderate risk
+
+HIGH → Dangerous, should be fixed soon
+
+CRITICAL → Must fix before production
+
+🛠 Step 3 — Scan Source Code (Optional)
+You can also scan your project filesystem for insecure dependencies:
+
+```bash
+trivy fs .
+```
+This detects:
+
+Vulnerable dependencies (requirements.txt, package.json, etc.)
+
+Insecure packages
+
+Hardcoded secrets
+
+🔐 Security Pipeline Flow
+```text
+Build Image
+   ↓
+Scan Image (Trivy)
+   ↓
+Push to Registry
+   ↓
+Deploy to Kubernetes
+```
+This ensures supply chain security by catching vulnerabilities early.
+
+🎯 Day 30 Success Checklist
+✔ Trivy installed
+
+✔ Image scanned
+
+✔ CVE report generated
+
+✔ Severity levels understood
+
+💬 Interview Power
+If asked:
+“How do you secure container images?”
+
+You can answer:
+
+We integrate vulnerability scanning tools like Trivy in our CI/CD pipeline to detect critical and high-severity CVEs before pushing images to the container registry. This ensures that only secure images are deployed to Kubernetes.

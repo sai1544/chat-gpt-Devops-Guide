@@ -5308,3 +5308,6 @@ If asked: “How do SRE teams measure reliability?”
 You can answer:
 
 SRE teams define Service Level Objectives based on Service Level Indicators like request success rate and latency, and use error budgets to balance system reliability with deployment velocity.
+
+
+

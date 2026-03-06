@@ -5191,3 +5191,120 @@ If asked:
 You can answer:
 We collect metrics using Prometheus and configure alert rules to detect anomalies like high CPU usage or frequent pod restarts, enabling proactive failure detection.
 That is a strong SRE-level answer.
+
+
+
+# Day 35 — SLA, SLO, SLI & Error Budgets
+
+## 🎯 Objective
+Learn how Site Reliability Engineering (SRE) teams measure reliability using SLA, SLO, SLI, and error budgets, and connect these concepts to Prometheus monitoring.
+
+---
+
+## 🧠 Core Concepts
+
+### 1️⃣ SLA — Service Level Agreement
+- **Definition**: A formal promise to users/customers.
+- **Analogy**: Like a warranty card for a product.
+- **Example**: "We guarantee 99.9% uptime per month."
+- **Math**:  
+  30 days = 43,200 minutes  
+  Allowed downtime = 0.1% × 43,200 = **43 minutes/month**
+
+---
+
+### 2️⃣ SLO — Service Level Objective
+- **Definition**: Internal reliability target set by engineers.
+- **Analogy**: Your personal fitness goal (stricter than the promise you make to others).
+- **Example**: "We aim for 99.95% availability."  
+  → Allowed downtime ≈ 21 minutes/month
+
+---
+
+### 3️⃣ SLI — Service Level Indicator
+- **Definition**: Actual measured metric from monitoring.
+- **Analogy**: The fitness tracker data that shows how many steps you really took.
+- **Formula**:
+  
+
+\[
+  SLI = \frac{\text{Successful requests}}{\text{Total requests}} \times 100
+  \]
+
+
+
+- **Example**:  
+  If 999,200 requests succeeded out of 1,000,000:  
+  
+
+\[
+  SLI = \frac{999,200}{1,000,000} \times 100 = 99.92\%
+  \]
+
+
+
+---
+
+### 4️⃣ Error Budget
+- **Definition**: The “wiggle room” between perfection and your SLO.
+- **Analogy**: The number of cheat meals you can have while still sticking to your diet plan.
+- **Example**:  
+  SLO = 99.9% uptime → Error budget = 43 minutes/month  
+  If you’ve already had 30 minutes downtime, only 13 minutes remain.
+
+---
+
+## ⚙️ Step 1 — Define SLO for Your API
+Service: DevOps Python API  
+- Availability Target: 99.9%  
+- Latency Target: < 200ms  
+- Error Rate Target: < 1%  
+
+---
+
+## ⚙️ Step 2 — Calculate Error Budget
+- SLO: 99.9% uptime  
+- Monthly minutes: 43,200  
+- Allowed downtime:  
+  
+
+\[
+  0.1\% \times 43,200 = 43.2 \text{ minutes}
+  \]
+
+
+
+**Error Budget = 43 minutes/month**
+
+---
+
+## ⚙️ Step 3 — Map Metrics to Prometheus
+Prometheus query for success rate:
+```promql
+sum(rate(http_requests_total{status!~"5.."}[5m]))
+/
+sum(rate(http_requests_total[5m]))
+```
+This calculates the percentage of successful requests (non‑5xx responses).
+
+📉 Why Error Budgets Matter
+Too many deployments → reliability drops.
+
+SRE rule: If error budget is exhausted → stop deployments until reliability improves.
+
+This balances innovation vs stability.
+
+✅ Day 35 Checklist
+[x] SLA understood
+
+[x] SLO defined for your API
+
+[x] Error budget calculated
+
+[x] SLI metric identified
+
+💬 Interview Power
+If asked: “How do SRE teams measure reliability?”  
+You can answer:
+
+SRE teams define Service Level Objectives based on Service Level Indicators like request success rate and latency, and use error budgets to balance system reliability with deployment velocity.

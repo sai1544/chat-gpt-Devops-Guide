@@ -5168,10 +5168,12 @@ Inhibition rules reduce noise by suppressing related alerts.
 
 📸 Screenshots
 
-Active notifications with default alerts
+- Active notifications with default alerts
+  
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/ffb63e24-b148-4e65-9464-c8fef79ff91a" />
 
-Suppressed alert from cpu-stress pod
+- Suppressed alert from cpu-stress pod
+  
 <img width="1459" height="480" alt="image" src="https://github.com/user-attachments/assets/b10a8bfb-5ea6-4430-9587-488f49a33040" />
 
 ✅ Day 34 Checklist
@@ -5182,3 +5184,10 @@ Suppressed alert from cpu-stress pod
 [x] Alerts triggered and visible in Grafana
 
 [x] Understood inhibition rules
+
+💬 Interview Power
+If asked:
+“How do you monitor production systems?”
+You can answer:
+We collect metrics using Prometheus and configure alert rules to detect anomalies like high CPU usage or frequent pod restarts, enabling proactive failure detection.
+That is a strong SRE-level answer.

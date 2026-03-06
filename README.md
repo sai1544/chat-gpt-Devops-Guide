@@ -1,5 +1,10 @@
 # chat-gpt-Devops-Guide
 
+## Architecture Diagram 
+
+![shared image](https://github.com/user-attachments/assets/919fe767-a742-4b64-a503-20dd54753a4e)
+
+
 # Devops Day 1 & Day 2 Notes
  
  

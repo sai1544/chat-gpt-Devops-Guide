@@ -5310,4 +5310,340 @@ You can answer:
 SRE teams define Service Level Objectives based on Service Level Indicators like request success rate and latency, and use error budgets to balance system reliability with deployment velocity.
 
 
+# Day 36 — Centralized Logging Architecture (EFK Stack)
 
+## 🎯 Objective
+Understand centralized logging in Kubernetes, structured logging, and the role of the EFK stack (Elasticsearch, Fluent Bit/Fluentd, Kibana).
+
+---
+
+## 🧠 Why Centralized Logging?
+- In small clusters, you can check logs with:
+  ```bash
+  kubectl logs <pod-name> -n dev
+  ```
+But in production:
+
+Thousands of pods
+
+Logs disappear when pods restart
+
+SSHing into nodes is inefficient
+
+Solution → Centralized Logging
+
+⚙️ Standard Logging Architecture
+Typical Kubernetes logging pipeline:
+
+```Code
+Pods
+ ↓
+Fluent Bit / Fluentd (log collector)
+ ↓
+Elasticsearch (storage & indexing)
+ ↓
+Kibana (search & visualization)
+```
+This is called the EFK Stack:
+```
+E → Elasticsearch (stores logs)
+
+F → Fluent Bit / Fluentd (collects logs)
+
+K → Kibana (visualizes logs)
+```
+⚙️ Step 1 — Check Application Logs
+Example:
+
+```bash
+kubectl logs devops-python-app-xxxx -n dev
+```
+This shows container logs directly.
+But logs vanish when pods restart → centralized logging is required.
+
+🧠 Step 2 — Structured Logging
+Instead of plain text:
+
+```Code
+User login failed
+```
+Use structured JSON logs:
+
+```json
+{
+  "timestamp": "2026-03-06T10:15:00",
+  "level": "ERROR",
+  "service": "devops-api",
+  "message": "User login failed"
+}
+```
+Benefits:
+
+Easy to filter (level:error)
+
+Easy to search (service:devops-api)
+
+Machine‑readable
+
+⚙️ Step 3 — Fluent Bit Role
+Runs as a DaemonSet → one logging agent per node
+
+Collects logs from /var/log/containers
+
+Forwards logs to Elasticsearch
+
+🧠 Step 4 — Elasticsearch
+Stores logs in a distributed, scalable database
+
+Indexes logs for fast search
+
+Handles large volumes of data
+
+🧠 Step 5 — Kibana
+Provides dashboards and search interface
+
+Example query:
+
+```Code
+service:devops-api AND level:error
+```
+Engineers use Kibana to troubleshoot production issues quickly
+
+
+
+✅ Day 36 Checklist
+[x] Understand centralized logging architecture
+
+[x] Understand Fluent Bit role
+
+[x] Understand Elasticsearch storage
+
+[x] Understand Kibana dashboards
+
+💬 Interview Power
+If asked: “How do you manage logs in Kubernetes?”  
+You can answer:
+
+We implement centralized logging using Fluent Bit to collect container logs and forward them to Elasticsearch, where they can be visualized and searched using Kibana dashboards.
+
+
+# Day 37 — Cloud Cost Optimization (FinOps Thinking)
+
+## 🎯 Objective
+Learn how to design cost‑aware infrastructure by understanding node sizing, overprovisioning, autoscaling, and error budgets for cloud costs.
+
+---
+
+## 🧠 Why Cost Optimization Matters
+Cloud bills can explode if resources are poorly sized.  
+Example problem:
+- Node size: `Standard_DS3_v2`
+- Actual usage: 15%
+- Cost: High
+
+You are paying for resources you don’t use.  
+**Goal → Right‑size nodes and workloads.**
+
+---
+
+## ⚙️ Node Size Comparison (AKS Example)
+
+| VM Type          | vCPU | RAM  | Cost     |
+|------------------|------|------|----------|
+| Standard_B2s     | 2    | 4GB  | cheap    |
+| Standard_DS2_v2  | 2    | 7GB  | medium   |
+| Standard_DS3_v2  | 4    | 14GB | expensive |
+
+For learning clusters, **Standard_B2s** is sufficient.  
+Production clusters often use larger nodes, but must be monitored for efficiency.
+
+---
+
+## 🧠 Overprovisioning Problem
+Example deployment:
+```yaml
+resources:
+  requests:
+    cpu: 500m
+```
+Actual usage:
+
+```Code
+80m
+```
+This wastes CPU capacity.
+Solution → Use VPA (Vertical Pod Autoscaler) recommendations and HPA (Horizontal Pod Autoscaler).
+
+⚙️ Cost Optimization Strategies
+1️⃣ Autoscaling
+Instead of fixed replicas:
+
+Code
+2 pods → 10 pods during traffic spike
+Saves cost during low traffic.
+
+2️⃣ Right‑Sizing
+Use VPA recommendations:
+
+```Code
+500m → 120m CPU
+```
+Prevents overprovisioning.
+
+3️⃣ Spot Instances
+Azure Spot VMs are cheaper but can be interrupted.
+
+Use for non‑critical workloads (batch jobs, dev environments).
+
+4️⃣ Scale‑to‑Zero
+Some workloads should only run when needed.
+
+Example: batch jobs, cron jobs.
+
+🧪 Step 1 — Check Node Usage
+Run:
+
+```bash
+kubectl top nodes
+```
+Example output:
+
+```Code
+CPU(cores)   CPU%
+200m         10%
+```
+This shows how efficiently nodes are used.
+
+🧪 Step 2 — Check Pod Usage
+Run:
+
+```bash
+kubectl top pods -n dev
+```
+Compare usage vs requests.
+If requests are much higher than usage → overprovisioning.
+
+
+✅ Day 37 Checklist
+[x] Understand node sizing
+
+[x] Understand autoscaling cost benefits
+
+[x] Understand overprovisioning issues
+
+[x] Check cluster resource usage
+
+💬 Interview Power
+If asked: “How do you control cloud infrastructure cost?”  
+You can answer:
+
+We optimize resource utilization using autoscaling, right‑sizing via VPA recommendations, and monitoring node usage metrics to prevent overprovisioning.
+
+
+# Day 38 — Disaster Recovery & Failure Simulation
+
+## 🎯 Objective
+Learn how Kubernetes and Infrastructure as Code (Terraform) handle failures, and simulate pod/node crashes to observe self‑healing behavior.
+
+---
+
+## 🧠 Why Resilience Matters
+Real systems fail:
+- Node crashes
+- Pod crashes
+- Deployment breaks
+- Database temporarily unavailable
+
+Good engineers design systems that **recover automatically**.  
+Kubernetes + Terraform provide resilience through **self‑healing** and **infrastructure recovery**.
+
+---
+
+## ⚙️ Test 1 — Pod Failure
+Delete one pod manually:
+```bash
+kubectl delete pod <pod-name> -n dev
+```
+Example:
+
+```bash
+kubectl delete pod devops-python-app-abc123 -n dev
+```
+Watch recovery:
+
+```bash
+kubectl get pods -n dev -w
+```
+You will see:
+
+Pod terminated
+
+New pod created automatically
+
+Controller → Deployment ensures pod recreation.
+
+⚙️ Test 2 — Kill Multiple Pods
+Delete all pods in namespace:
+
+```bash
+kubectl delete pods --all -n dev
+```
+Deployment controller will recreate them.
+This demonstrates self‑healing behavior at scale.
+
+⚙️ Test 3 — Node Failure Simulation
+Find node name:
+
+```bash
+kubectl get nodes
+```
+Drain node:
+
+```bash
+kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+```
+Pods will reschedule on another node.
+Check:
+
+```bash
+kubectl get pods -o wide -n dev
+```
+Scheduler → reschedules workloads to healthy nodes.
+
+🧠 What Happened
+Your system handled failure using:
+
+Deployment controller → pod recovery
+
+Scheduler → node rescheduling
+
+HPA → scaling
+
+Terraform → infrastructure recovery
+
+This is resilience architecture.
+
+⚙️ Infrastructure Recovery Example
+If cluster gets deleted accidentally:
+
+```bash
+terraform apply
+```
+Entire infrastructure can be recreated.
+That is the power of Infrastructure as Code (IaC).
+
+
+✅ Day 38 Checklist
+[x] Pod failure tested
+
+[x] Deployment recreated pods
+
+[x] Node drain tested
+
+[x] Pods rescheduled successfully
+
+💬 Interview Power
+If asked: “How does Kubernetes handle failures?”  
+You can answer:
+
+Kubernetes automatically handles failures using controllers like Deployments that recreate pods, while the scheduler reschedules workloads if nodes become unavailable. Infrastructure as Code tools like Terraform allow full environment recovery if infrastructure is lost.

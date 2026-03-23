@@ -10,7 +10,7 @@
  
 ---
  
-#📅 Day 1 — FastAPI + Docker Fundamentals
+## 📅 Day 1 — FastAPI + Docker Fundamentals
  
 FastAPI Setup
  
@@ -80,7 +80,7 @@ docker logs <container-id>
  
 ---
  
-#📅 Day 2 — Logging + Config + PostgreSQL Integration
+## 📅 Day 2 — Logging + Config + PostgreSQL Integration
  
 Project Structure Refactor
  
@@ -278,7 +278,7 @@ You now have: ✔ Containerized FastAPI App
 ---
 
 
-# Day 3 — Production-Grade Docker 🚀
+## Day 3 — Production-Grade Docker 🚀
 
 This document captures everything from **Day 3** of the DevOps learning journey: making Docker images optimized, secure, reproducible, and production-ready.
 
